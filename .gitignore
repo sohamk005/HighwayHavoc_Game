@@ -1,0 +1,22 @@
+# Build folders
+/out/
+/build/
+/bin/
+
+# Visual Studio
+/.vs/
+
+# IDEs
+.idea/
+
+# CMake
+CMakeSettings.json
+CMakeUserPresets.json
+
+# Generated files
+Makefile
+compile_commands.json
+
+# OS
+.DS_Store
+Thumbs.db
