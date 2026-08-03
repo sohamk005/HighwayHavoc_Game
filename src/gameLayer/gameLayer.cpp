@@ -9,21 +9,57 @@
 #include "platformInput.h"
 #include <platformTools.h>
 
+#include "assetManager.h"
+
+AssetManager assets;
 gl2d::Renderer2D renderer;
+
+//=========================================================
+// Player
+//=========================================================
+
+struct Player
+{
+    glm::vec2 position = { 400.f, 300.f };
+
+    glm::vec2 size = { 60.f, 80.f };
+
+    float speed = 400.f;
+
+    gl2d::Texture* texture = nullptr;
+};
+
+//=========================================================
+// Game Data
+//=========================================================
 
 struct GameData
 {
-    glm::vec2 playerPos = { 400.f, 300.f };
+    Player player{};
 };
 
 GameData game;
 
+//=========================================================
+// Initialization
+//=========================================================
+
 bool initGame()
 {
     gl2d::init();
+
     renderer.create();
+
+    assets.loadAssets();
+
+    game.player.texture = &assets.blueCar;
+
     return true;
 }
+
+//=========================================================
+// Main Game Loop
+//=========================================================
 
 bool gameLogic(float deltaTime)
 {
@@ -35,40 +71,57 @@ bool gameLogic(float deltaTime)
 
     renderer.updateWindowMetrics(w, h);
 
-    float speed = 400.f;
+    //-----------------------------------------------------
+    // Player Movement
+    //-----------------------------------------------------
 
     if (platform::isButtonHeld(platform::Button::W))
-        game.playerPos.y -= speed * deltaTime;
+        game.player.position.y -= game.player.speed * deltaTime;
 
     if (platform::isButtonHeld(platform::Button::S))
-        game.playerPos.y += speed * deltaTime;
+        game.player.position.y += game.player.speed * deltaTime;
 
     if (platform::isButtonHeld(platform::Button::A))
-        game.playerPos.x -= speed * deltaTime;
+        game.player.position.x -= game.player.speed * deltaTime;
 
     if (platform::isButtonHeld(platform::Button::D))
-        game.playerPos.x += speed * deltaTime;
+        game.player.position.x += game.player.speed * deltaTime;
 
-    // Keep player inside the window
-    game.playerPos.x = glm::clamp(game.playerPos.x, 0.f, (float)w - 60.f);
-    game.playerPos.y = glm::clamp(game.playerPos.y, 0.f, (float)h - 100.f);
+    //-----------------------------------------------------
+    // Keep Player Inside Window
+    //-----------------------------------------------------
 
-    // Draw a simple placeholder
+    game.player.position.x = glm::clamp(
+        game.player.position.x,
+        0.f,
+        (float)w - game.player.size.x);
+
+    game.player.position.y = glm::clamp(
+        game.player.position.y,
+        0.f,
+        (float)h - game.player.size.y);
+
+    //-----------------------------------------------------
+    // Render Player
+    //-----------------------------------------------------
+
     renderer.renderRectangle(
         {
-            game.playerPos.x,
-            game.playerPos.y,
-            60,
-            100
+            game.player.position,
+            game.player.size
         },
-        Colors_Blue
-    );
+        *game.player.texture);
 
     renderer.flush();
 
     return true;
 }
 
+//=========================================================
+// Cleanup
+//=========================================================
+
 void closeGame()
 {
+    assets.freeAssets();
 }
