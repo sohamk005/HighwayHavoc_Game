@@ -21,4 +21,6 @@ struct Road
 
     float left() const;
     float right() const;
+    float grassLeftWidth() const;
+    float grassRightStart() const;
 };

@@ -42,6 +42,10 @@ void AssetManager::loadAssets()
 
     rock.loadFromFile(
         RESOURCES_PATH "textures/environment/rock_large.png", true);
+
+    grass.loadFromFile(
+        RESOURCES_PATH "textures/environment/land_grass04.png",
+        true);
 }
 
 void AssetManager::freeAssets()
@@ -63,4 +67,5 @@ void AssetManager::freeAssets()
     barrier.cleanup();
     cone.cleanup();
     rock.cleanup();
+    grass.cleanup();
 }

@@ -21,6 +21,8 @@ struct AssetManager
     gl2d::Texture barrier;
     gl2d::Texture cone;
     gl2d::Texture rock;
+    // Ground
+    gl2d::Texture grass;
 
     void loadAssets();
     void freeAssets();

@@ -13,9 +13,17 @@
 
 #include "road.h"
 
+#include "grass.h"
+
+#include "obstacleManager.h"
+
+
+
 AssetManager assets;
 gl2d::Renderer2D renderer;
 Road road;
+Grass grass;
+ObstacleManager obstacleManager;
 
 //=========================================================
 // Player
@@ -74,6 +82,11 @@ bool initGame()
 
     game.player.texture = &assets.blueCar;
 
+    int w = platform::getFrameBufferSizeX();
+
+
+    road.update(w);
+
     game.player.position.x =
         road.left() + road.width / 2.f - game.player.size.x / 2.f;
 
@@ -100,6 +113,31 @@ bool gameLogic(float deltaTime)
 
 
     renderer.updateWindowMetrics(w, h);
+
+    //-----------------------------------------------------
+       // Grass
+       //-----------------------------------------------------
+
+    road.update(w);
+
+    grass.render(
+        renderer,
+        assets.grass,
+        road.left(),
+        road.right(),
+        w,
+        h,
+        game.world.scrollOffset);
+
+    //-----------------------------------------------------
+// Render Road
+//---------------------------------------------------
+
+    road.render(
+        renderer,
+        assets.roadStraight,
+        h,
+        game.world.scrollOffset);
 
    
 
@@ -128,17 +166,26 @@ bool gameLogic(float deltaTime)
      game.world.scrollSpeed +=
      game.world.acceleration * deltaTime;
 
+     obstacleManager.update(
+         game.world.scrollSpeed,
+         deltaTime,
+         w,
+         h,
+         road.left(),
+         road.right(),
+         &assets.treeLarge);
+
      if (platform::isButtonHeld(platform::Button::W))
     {
         game.world.scrollSpeed +=
         game.world.acceleration * deltaTime * 1.1;
     }
 
-    if (platform::isButtonHeld(platform::Button::S))
-    {
-        game.world.scrollSpeed -=
-            game.world.brakePower * deltaTime * 1.1;
-    }
+    //if (platform::isButtonHeld(platform::Button::S))
+    //{
+    //    game.world.scrollSpeed -=
+    //       game.world.brakePower * deltaTime;
+    //}
 
     game.world.scrollSpeed =
         std::clamp(
@@ -167,20 +214,10 @@ bool gameLogic(float deltaTime)
         0.f,
         (float)h - game.player.size.y);
 
-    //-----------------------------------------------------
-// Render Road
-//-----------------------------------------------------
 
-    road.update(w);
+    //Render Trees - Obstacles
+    obstacleManager.render(renderer);
 
-
-
-
-    road.render(
-        renderer,
-        assets.roadStraight,
-        h,
-        game.world.scrollOffset);
 
     //-----------------------------------------------------
     // Render Player

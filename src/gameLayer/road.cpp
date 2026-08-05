@@ -38,3 +38,13 @@ float Road::right() const
 {
     return position.x + width;
 }
+
+float Road::grassLeftWidth() const
+{
+    return position.x;
+}
+
+float Road::grassRightStart() const
+{
+    return position.x + width;
+}
