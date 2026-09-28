@@ -41,7 +41,7 @@ void AssetManager::loadAssets()
         RESOURCES_PATH "textures/environment/cone_straight.png", true);
 
     rock.loadFromFile(
-        RESOURCES_PATH "textures/environment/rock_large.png", true);
+        RESOURCES_PATH "textures/environment/rock1.png", true);
 
     grass.loadFromFile(
         RESOURCES_PATH "textures/environment/land_grass04.png",

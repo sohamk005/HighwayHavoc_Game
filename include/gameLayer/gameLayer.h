@@ -2,6 +2,7 @@
 #include <glm/vec2.hpp>
 
 bool initGame();
+void resetGame();
 bool gameLogic(float deltaTime);
 void closeGame();
 

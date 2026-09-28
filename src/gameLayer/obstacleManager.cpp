@@ -1,6 +1,7 @@
 #include "obstacleManager.h"
 
 #include <cstdlib>
+#include <algorithm>
 
 float randomGrassX(
     float objectWidth,
@@ -14,23 +15,31 @@ float randomGrassX(
     {
         float maxX = roadLeft - objectWidth;
 
-        if (maxX < 0)
-            maxX = 0;
+        if (maxX < 0.f)
+            maxX = 0.f;
 
-        return static_cast<float>(
-            rand() % (static_cast<int>(maxX) + 1));
+        int maxInt = static_cast<int>(maxX);
+        if (maxInt > 0)
+        {
+            return static_cast<float>(rand() % (maxInt + 1));
+        }
+        return 0.f;
     }
     else
     {
         float available =
             windowWidth - roadRight - objectWidth;
 
-        if (available < 0)
-            available = 0;
+        if (available < 0.f)
+            available = 0.f;
 
-        return roadRight +
-            static_cast<float>(
-                rand() % (static_cast<int>(available) + 1));
+        int availInt = static_cast<int>(available);
+        if (availInt > 0)
+        {
+            return roadRight +
+                static_cast<float>(rand() % (availInt + 1));
+        }
+        return roadRight;
     }
 }
 
@@ -73,7 +82,7 @@ void ObstacleManager::update(
             roadLeft,
             roadRight);
 
-        position.y = -100.f;
+        position.y = -size.y;
 
         spawn(treeTexture, position, size);
     }
@@ -82,6 +91,20 @@ void ObstacleManager::update(
     {
         obstacle.update(scrollSpeed, deltaTime);
     }
+
+    // Lifecycle cleanup: remove off-screen obstacles beyond viewport bottom
+    constexpr float DESPAWN_MARGIN = 150.f;
+    const float despawnThreshold = static_cast<float>(windowHeight) + DESPAWN_MARGIN;
+
+    obstacles.erase(
+        std::remove_if(
+            obstacles.begin(),
+            obstacles.end(),
+            [despawnThreshold](const Obstacle& obstacle)
+            {
+                return obstacle.position.y > despawnThreshold;
+            }),
+        obstacles.end());
 }
 
 void ObstacleManager::render(gl2d::Renderer2D& renderer)
@@ -90,4 +113,10 @@ void ObstacleManager::render(gl2d::Renderer2D& renderer)
     {
         obstacle.render(renderer);
     }
+}
+
+void ObstacleManager::reset()
+{
+    obstacles.clear();
+    spawnTimer = 0.f;
 }

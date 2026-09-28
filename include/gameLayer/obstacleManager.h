@@ -25,4 +25,6 @@ struct ObstacleManager
         gl2d::Texture* treeTexture);
 
     void render(gl2d::Renderer2D& renderer);
+
+    void reset();
 };

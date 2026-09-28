@@ -69,6 +69,29 @@ struct GameData
 GameData game;
 
 //=========================================================
+// Reset Gameplay Foundation
+//=========================================================
+
+void resetGame()
+{
+    int w = platform::getFrameBufferSizeX();
+    int h = platform::getFrameBufferSizeY();
+
+    road.update(w);
+
+    game.player.position.x =
+        road.left() + road.width / 2.f - game.player.size.x / 2.f;
+
+    game.player.position.y =
+        (float)h - game.player.size.y - 40.f;
+
+    game.world.scrollSpeed = 0.f;
+    game.world.scrollOffset = 0.f;
+
+    obstacleManager.reset();
+}
+
+//=========================================================
 // Initialization
 //=========================================================
 
@@ -82,18 +105,7 @@ bool initGame()
 
     game.player.texture = &assets.blueCar;
 
-    int w = platform::getFrameBufferSizeX();
-
-
-    road.update(w);
-
-    game.player.position.x =
-        road.left() + road.width / 2.f - game.player.size.x / 2.f;
-
-    game.player.position.y =
-        platform::getFrameBufferSizeY()
-        - game.player.size.y
-        - 40.f;
+    resetGame();
 
     return true;
 }
@@ -114,9 +126,15 @@ bool gameLogic(float deltaTime)
 
     renderer.updateWindowMetrics(w, h);
 
+    // Reset gameplay foundation (press R)
+    if (platform::isButtonPressedOn(platform::Button::R))
+    {
+        resetGame();
+    }
+
     //-----------------------------------------------------
-       // Grass
-       //-----------------------------------------------------
+    // Grass
+    //-----------------------------------------------------
 
     road.update(w);
 
@@ -130,8 +148,8 @@ bool gameLogic(float deltaTime)
         game.world.scrollOffset);
 
     //-----------------------------------------------------
-// Render Road
-//---------------------------------------------------
+    // Render Road
+    //-----------------------------------------------------
 
     road.render(
         renderer,

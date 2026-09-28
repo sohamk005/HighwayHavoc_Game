@@ -316,9 +316,9 @@ int main()
 #endif
 
 
-	int w = 500;
-	int h = 500;
-	wind = glfwCreateWindow(w, h, "geam", nullptr, nullptr);
+	int w = 960;
+	int h = 720;
+	wind = glfwCreateWindow(w, h, "Highway Havoc", nullptr, nullptr);
 	glfwMakeContextCurrent(wind);
 	glfwSwapInterval(1);
 
@@ -435,7 +435,7 @@ int main()
 		if (platform::isFocused() && currentFullScreen != fullScreen)
 		{
 			static int lastW = w;
-			static int lastH = w;
+			static int lastH = h;
 			static int lastPosX = 0;
 			static int lastPosY = 0;
 
