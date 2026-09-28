@@ -16,14 +16,14 @@
 #include "grass.h"
 
 #include "obstacleManager.h"
-
-
+#include "trafficManager.h"
 
 AssetManager assets;
 gl2d::Renderer2D renderer;
 Road road;
 Grass grass;
 ObstacleManager obstacleManager;
+TrafficManager trafficManager;
 
 //=========================================================
 // Player
@@ -79,8 +79,9 @@ void resetGame()
 
     road.update(w);
 
+    // Center player horizontally in center lane (lane 1)
     game.player.position.x =
-        road.left() + road.width / 2.f - game.player.size.x / 2.f;
+        road.getLaneCenter(1) - game.player.size.x / 2.f;
 
     game.player.position.y =
         (float)h - game.player.size.y - 40.f;
@@ -89,6 +90,7 @@ void resetGame()
     game.world.scrollOffset = 0.f;
 
     obstacleManager.reset();
+    trafficManager.reset();
 }
 
 //=========================================================
@@ -193,6 +195,13 @@ bool gameLogic(float deltaTime)
          road.right(),
          &assets.treeLarge);
 
+     trafficManager.update(
+         game.world.scrollSpeed,
+         deltaTime,
+         h,
+         road,
+         assets);
+
      if (platform::isButtonHeld(platform::Button::W))
     {
         game.world.scrollSpeed +=
@@ -233,7 +242,10 @@ bool gameLogic(float deltaTime)
         (float)h - game.player.size.y);
 
 
-    //Render Trees - Obstacles
+    // Render Traffic
+    trafficManager.render(renderer);
+
+    // Render Trees - Obstacles
     obstacleManager.render(renderer);
 
 

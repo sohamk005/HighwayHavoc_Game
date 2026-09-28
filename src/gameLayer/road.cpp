@@ -48,3 +48,32 @@ float Road::grassRightStart() const
 {
     return position.x + width;
 }
+
+float Road::getLaneWidth() const
+{
+    return width / static_cast<float>(NUM_LANES);
+}
+
+float Road::getLaneLeft(int laneIndex) const
+{
+    return position.x + static_cast<float>(laneIndex) * getLaneWidth();
+}
+
+float Road::getLaneRight(int laneIndex) const
+{
+    return position.x + static_cast<float>(laneIndex + 1) * getLaneWidth();
+}
+
+float Road::getLaneCenter(int laneIndex) const
+{
+    return position.x + (static_cast<float>(laneIndex) + 0.5f) * getLaneWidth();
+}
+
+int Road::getLaneIndexFromX(float x) const
+{
+    float relativeX = x - position.x;
+    int index = static_cast<int>(relativeX / getLaneWidth());
+    if (index < 0) return 0;
+    if (index >= NUM_LANES) return NUM_LANES - 1;
+    return index;
+}

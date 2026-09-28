@@ -23,4 +23,13 @@ struct Road
     float right() const;
     float grassLeftWidth() const;
     float grassRightStart() const;
+
+    // Authoritative 3-Lane Model
+    static constexpr int NUM_LANES = 3;
+
+    float getLaneWidth() const;
+    float getLaneLeft(int laneIndex) const;
+    float getLaneRight(int laneIndex) const;
+    float getLaneCenter(int laneIndex) const;
+    int getLaneIndexFromX(float x) const;
 };
