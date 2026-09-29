@@ -17,6 +17,8 @@
 
 #include "obstacleManager.h"
 #include "trafficManager.h"
+#include "player.h"
+#include "collision.h"
 
 AssetManager assets;
 gl2d::Renderer2D renderer;
@@ -24,22 +26,6 @@ Road road;
 Grass grass;
 ObstacleManager obstacleManager;
 TrafficManager trafficManager;
-
-//=========================================================
-// Player
-//=========================================================
-
-struct Player
-{
-    glm::vec2 position = { 400.f, 300.f };
-
-    glm::vec2 size = { 60.f, 80.f };
-
-    float speed = 400.f;
-
-    gl2d::Texture* texture = nullptr;
-};
-
 
 //=========================================================
 // Game World --
@@ -79,12 +65,10 @@ void resetGame()
 
     road.update(w);
 
-    // Center player horizontally in center lane (lane 1)
-    game.player.position.x =
-        road.getLaneCenter(1) - game.player.size.x / 2.f;
+    float startX = road.getLaneCenter(1) - game.player.size.x / 2.f;
+    float startY = (float)h - game.player.size.y - 40.f;
 
-    game.player.position.y =
-        (float)h - game.player.size.y - 40.f;
+    game.player.reset(startX, startY);
 
     game.world.scrollSpeed = 0.f;
     game.world.scrollOffset = 0.f;
@@ -113,6 +97,77 @@ bool initGame()
 }
 
 //=========================================================
+// Minimal Health Bar HUD
+//=========================================================
+
+void renderHealthBar(gl2d::Renderer2D& r, int currentHealth, int maxHealth)
+{
+    constexpr float barX = 24.f;
+    constexpr float barY = 24.f;
+    constexpr float barWidth = 200.f;
+    constexpr float barHeight = 18.f;
+    constexpr float borderPadding = 3.f;
+
+    // Dark outer border/frame
+    r.renderRectangle(
+        {
+            barX - borderPadding,
+            barY - borderPadding,
+            barWidth + 2.f * borderPadding,
+            barHeight + 2.f * borderPadding
+        },
+        gl2d::Color4f{ 0.08f, 0.08f, 0.08f, 0.85f });
+
+    // Empty bar background slot
+    r.renderRectangle(
+        {
+            barX,
+            barY,
+            barWidth,
+            barHeight
+        },
+        gl2d::Color4f{ 0.22f, 0.22f, 0.22f, 0.9f });
+
+    // Health percentage calculation & color threshold
+    float fraction = 0.f;
+    if (maxHealth > 0)
+    {
+        fraction = static_cast<float>(currentHealth) / static_cast<float>(maxHealth);
+    }
+    fraction = std::clamp(fraction, 0.f, 1.f);
+
+    gl2d::Color4f barColor;
+    if (fraction > 0.60f)
+    {
+        // > 60%: Healthy Green
+        barColor = { 0.2f, 0.85f, 0.2f, 1.0f };
+    }
+    else if (fraction > 0.30f)
+    {
+        // 31% - 60%: Damaged Yellow/Orange
+        barColor = { 0.95f, 0.75f, 0.1f, 1.0f };
+    }
+    else
+    {
+        // <= 30%: Critical Red
+        barColor = { 0.9f, 0.2f, 0.2f, 1.0f };
+    }
+
+    float fillWidth = barWidth * fraction;
+    if (fillWidth > 0.f)
+    {
+        r.renderRectangle(
+            {
+                barX,
+                barY,
+                fillWidth,
+                barHeight
+            },
+            barColor);
+    }
+}
+
+//=========================================================
 // Main Game Loop
 //=========================================================
 
@@ -124,8 +179,6 @@ bool gameLogic(float deltaTime)
     glViewport(0, 0, w, h);
     glClear(GL_COLOR_BUFFER_BIT);
 
-
-
     renderer.updateWindowMetrics(w, h);
 
     // Reset gameplay foundation (press R)
@@ -134,12 +187,138 @@ bool gameLogic(float deltaTime)
         resetGame();
     }
 
-    //-----------------------------------------------------
-    // Grass
-    //-----------------------------------------------------
-
     road.update(w);
 
+    constexpr float ROAD_MARGIN = 12.f;
+
+    // Active simulation (only when player is alive)
+    if (!game.player.isDead)
+    {
+        // 1. Update player invulnerability cooldown
+        game.player.update(deltaTime);
+
+        // 2. Player Movement
+        if (platform::isButtonHeld(platform::Button::W))
+            game.player.position.y -= game.player.speed * deltaTime;
+
+        if (platform::isButtonHeld(platform::Button::S))
+            game.player.position.y += game.player.speed * deltaTime;
+
+        if (platform::isButtonHeld(platform::Button::A))
+            game.player.position.x -= game.player.speed * deltaTime;
+
+        if (platform::isButtonHeld(platform::Button::D))
+            game.player.position.x += game.player.speed * deltaTime;
+
+        // Keep Player Inside Road & Window Bounds
+        game.player.position.x = glm::clamp(
+            game.player.position.x,
+            road.left() + ROAD_MARGIN,
+            road.right() - game.player.size.x - ROAD_MARGIN);
+
+        game.player.position.y = glm::clamp(
+            game.player.position.y,
+            0.f,
+            (float)h - game.player.size.y);
+
+        // 3. World Scrolling
+        game.world.scrollSpeed +=
+            game.world.acceleration * deltaTime;
+
+        if (platform::isButtonHeld(platform::Button::W))
+        {
+            game.world.scrollSpeed +=
+                game.world.acceleration * deltaTime * 1.1f;
+        }
+
+        game.world.scrollSpeed =
+            std::clamp(
+                game.world.scrollSpeed,
+                0.f,
+                game.world.maxScrollSpeed);
+
+        game.world.scrollOffset +=
+            game.world.scrollSpeed * deltaTime;
+
+        // 4. Update obstacles & traffic
+        obstacleManager.update(
+            game.world.scrollSpeed,
+            deltaTime,
+            w,
+            h,
+            road.left(),
+            road.right(),
+            &assets.treeLarge);
+
+        trafficManager.update(
+            game.world.scrollSpeed,
+            deltaTime,
+            h,
+            road,
+            assets);
+
+        // 5. Collision Detection & Response
+        // Player vs. Traffic Cars
+        for (const auto& car : trafficManager.cars)
+        {
+            if (!car.active)
+                continue;
+
+            if (collision::checkAABBOverlap(game.player.position, game.player.size, car.position, car.size))
+            {
+                game.player.takeDamage(Player::DAMAGE_PER_COLLISION);
+                collision::resolveAABBCollision(game.player.position, game.player.size, car.position, car.size);
+
+                game.player.position.x = glm::clamp(
+                    game.player.position.x,
+                    road.left() + ROAD_MARGIN,
+                    road.right() - game.player.size.x - ROAD_MARGIN);
+                game.player.position.y = glm::clamp(
+                    game.player.position.y,
+                    0.f,
+                    (float)h - game.player.size.y);
+
+                if (collision::checkAABBOverlap(game.player.position, game.player.size, car.position, car.size))
+                {
+                    game.player.position.y = car.position.y + car.size.y + 1.f;
+                    game.player.position.y = glm::clamp(game.player.position.y, 0.f, (float)h - game.player.size.y);
+                }
+            }
+        }
+
+        // Player vs. Roadside Obstacles
+        for (const auto& obs : obstacleManager.obstacles)
+        {
+            if (!obs.active)
+                continue;
+
+            if (collision::checkAABBOverlap(game.player.position, game.player.size, obs.position, obs.size))
+            {
+                game.player.takeDamage(Player::DAMAGE_PER_COLLISION);
+                collision::resolveAABBCollision(game.player.position, game.player.size, obs.position, obs.size);
+
+                game.player.position.x = glm::clamp(
+                    game.player.position.x,
+                    road.left() + ROAD_MARGIN,
+                    road.right() - game.player.size.x - ROAD_MARGIN);
+                game.player.position.y = glm::clamp(
+                    game.player.position.y,
+                    0.f,
+                    (float)h - game.player.size.y);
+            }
+        }
+    }
+    else
+    {
+        // Death frozen simulation state: world scroll stops completely
+        game.world.scrollSpeed = 0.f;
+    }
+
+    //-----------------------------------------------------
+    // Rendering (runs in both active and frozen states)
+    //-----------------------------------------------------
+
+    // Grass
     grass.render(
         renderer,
         assets.grass,
@@ -149,118 +328,45 @@ bool gameLogic(float deltaTime)
         h,
         game.world.scrollOffset);
 
-    //-----------------------------------------------------
-    // Render Road
-    //-----------------------------------------------------
-
+    // Road
     road.render(
         renderer,
         assets.roadStraight,
         h,
         game.world.scrollOffset);
 
-   
-
-    //-----------------------------------------------------
-    // Player Movement
-    //-----------------------------------------------------
-
-    if (platform::isButtonHeld(platform::Button::W))
-        game.player.position.y -= game.player.speed * deltaTime;
-
-    if (platform::isButtonHeld(platform::Button::S))
-        game.player.position.y += game.player.speed * deltaTime;
-
-    if (platform::isButtonHeld(platform::Button::A))
-        game.player.position.x -= game.player.speed * deltaTime;
-
-    if (platform::isButtonHeld(platform::Button::D))
-        game.player.position.x += game.player.speed * deltaTime;
-
-
-//-----------------------------------------------------
-// World Scrolling
-//-----------------------------------------------------
-
-    
-     game.world.scrollSpeed +=
-     game.world.acceleration * deltaTime;
-
-     obstacleManager.update(
-         game.world.scrollSpeed,
-         deltaTime,
-         w,
-         h,
-         road.left(),
-         road.right(),
-         &assets.treeLarge);
-
-     trafficManager.update(
-         game.world.scrollSpeed,
-         deltaTime,
-         h,
-         road,
-         assets);
-
-     if (platform::isButtonHeld(platform::Button::W))
-    {
-        game.world.scrollSpeed +=
-        game.world.acceleration * deltaTime * 1.1;
-    }
-
-    //if (platform::isButtonHeld(platform::Button::S))
-    //{
-    //    game.world.scrollSpeed -=
-    //       game.world.brakePower * deltaTime;
-    //}
-
-    game.world.scrollSpeed =
-        std::clamp(
-            game.world.scrollSpeed,
-            0.f,
-            game.world.maxScrollSpeed);
-
-    game.world.scrollOffset +=
-        game.world.scrollSpeed * deltaTime;
-
-
-
-    //-----------------------------------------------------
-    // Keep Player Inside Window
-    //-----------------------------------------------------
-
-    constexpr float ROAD_MARGIN = 12.f;
-
-    game.player.position.x = glm::clamp(
-        game.player.position.x,
-        road.left() + ROAD_MARGIN,
-        road.right() - game.player.size.x - ROAD_MARGIN);
-
-    game.player.position.y = glm::clamp(
-        game.player.position.y,
-        0.f,
-        (float)h - game.player.size.y);
-
-
-    // Render Traffic
+    // Traffic Cars
     trafficManager.render(renderer);
 
-    // Render Trees - Obstacles
+    // Trees - Obstacles
     obstacleManager.render(renderer);
 
-
-    //-----------------------------------------------------
-    // Render Player
-    //-----------------------------------------------------
+    // Player with Collision Feedback
+    gl2d::Color4f playerColor = { 1.f, 1.f, 1.f, 1.f };
+    if (game.player.isDead)
+    {
+        // Darkened / red tint when health reaches zero
+        playerColor = { 0.6f, 0.2f, 0.2f, 0.8f };
+    }
+    else if (game.player.isInvulnerable())
+    {
+        // Flashing visibility/tint during invulnerability
+        if (std::fmod(game.player.invulnerabilityTimer, 0.2f) < 0.1f)
+        {
+            playerColor = { 1.f, 0.3f, 0.3f, 0.6f };
+        }
+    }
 
     renderer.renderRectangle(
         {
             game.player.position,
             game.player.size
         },
-        *game.player.texture);
+        *game.player.texture,
+        playerColor);
 
-    //std::cout << game.world.scrollOffset << '\n';
+    // Minimal Health Bar HUD
+    renderHealthBar(renderer, game.player.health, Player::MAX_HEALTH);
 
     renderer.flush();
 
