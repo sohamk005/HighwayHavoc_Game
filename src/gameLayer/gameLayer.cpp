@@ -19,6 +19,7 @@
 #include "trafficManager.h"
 #include "player.h"
 #include "collision.h"
+#include "scoreSystem.h"
 
 AssetManager assets;
 gl2d::Renderer2D renderer;
@@ -50,6 +51,7 @@ struct GameData
 {
     Player player{};
     GameWorld world;
+    ScoreSystem score;
 };
 
 GameData game;
@@ -73,8 +75,14 @@ void resetGame()
     game.world.scrollSpeed = 0.f;
     game.world.scrollOffset = 0.f;
 
+    // Reset current run score & difficulty; session high score is preserved!
+    game.score.resetRun();
+    game.world.maxScrollSpeed = game.score.getMaxScrollSpeed();
+
     obstacleManager.reset();
     trafficManager.reset();
+
+    ilog("Run Reset. High Score:", game.score.highScore);
 }
 
 //=========================================================
@@ -221,7 +229,12 @@ bool gameLogic(float deltaTime)
             0.f,
             (float)h - game.player.size.y);
 
-        // 3. World Scrolling
+        // 3. Score & Difficulty Progression
+        game.score.update(game.world.scrollSpeed, deltaTime, game.player.isDead);
+        game.world.maxScrollSpeed = game.score.getMaxScrollSpeed();
+        trafficManager.spawnInterval = game.score.getTrafficSpawnInterval();
+
+        // 4. World Scrolling
         game.world.scrollSpeed +=
             game.world.acceleration * deltaTime;
 
@@ -240,7 +253,7 @@ bool gameLogic(float deltaTime)
         game.world.scrollOffset +=
             game.world.scrollSpeed * deltaTime;
 
-        // 4. Update obstacles & traffic
+        // 5. Update obstacles & traffic
         obstacleManager.update(
             game.world.scrollSpeed,
             deltaTime,
@@ -255,9 +268,10 @@ bool gameLogic(float deltaTime)
             deltaTime,
             h,
             road,
-            assets);
+            assets,
+            game.score.getTrafficSpeedBoost());
 
-        // 5. Collision Detection & Response
+        // 6. Collision Detection & Response
         // Player vs. Traffic Cars
         for (const auto& car : trafficManager.cars)
         {
@@ -266,7 +280,11 @@ bool gameLogic(float deltaTime)
 
             if (collision::checkAABBOverlap(game.player.position, game.player.size, car.position, car.size))
             {
-                game.player.takeDamage(Player::DAMAGE_PER_COLLISION);
+                bool tookDamage = game.player.takeDamage(Player::DAMAGE_PER_COLLISION);
+                if (tookDamage && game.player.isDead)
+                {
+                    ilog("GAME OVER! Final Score:", game.score.currentScore, "| High Score:", game.score.highScore);
+                }
                 collision::resolveAABBCollision(game.player.position, game.player.size, car.position, car.size);
 
                 game.player.position.x = glm::clamp(
@@ -294,7 +312,11 @@ bool gameLogic(float deltaTime)
 
             if (collision::checkAABBOverlap(game.player.position, game.player.size, obs.position, obs.size))
             {
-                game.player.takeDamage(Player::DAMAGE_PER_COLLISION);
+                bool tookDamage = game.player.takeDamage(Player::DAMAGE_PER_COLLISION);
+                if (tookDamage && game.player.isDead)
+                {
+                    ilog("GAME OVER! Final Score:", game.score.currentScore, "| High Score:", game.score.highScore);
+                }
                 collision::resolveAABBCollision(game.player.position, game.player.size, obs.position, obs.size);
 
                 game.player.position.x = glm::clamp(

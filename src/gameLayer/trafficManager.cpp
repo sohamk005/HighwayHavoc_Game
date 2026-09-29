@@ -18,7 +18,7 @@ bool TrafficManager::isLaneSafeForSpawn(int lane, float spawnY) const
     return true;
 }
 
-void TrafficManager::spawn(const Road& road, AssetManager& assets)
+void TrafficManager::spawn(const Road& road, AssetManager& assets, float speedBoost)
 {
     if (cars.size() >= MAX_TRAFFIC_CARS)
     {
@@ -52,7 +52,7 @@ void TrafficManager::spawn(const Road& road, AssetManager& assets)
     car.size = { 60.f, 80.f };
     car.position.x = road.getLaneCenter(chosenLane) - car.size.x / 2.f;
     car.position.y = -car.size.y;
-    car.forwardSpeed = 160.f + static_cast<float>(rand() % 80); // 160 to 240 px/s
+    car.forwardSpeed = 160.f + static_cast<float>(rand() % 80) + speedBoost; // [160, 240] + speedBoost
     car.active = true;
 
     // Distribute among available car textures
@@ -72,14 +72,15 @@ void TrafficManager::update(
     float deltaTime,
     int windowHeight,
     const Road& road,
-    AssetManager& assets)
+    AssetManager& assets,
+    float speedBoost)
 {
     spawnTimer += deltaTime;
 
     if (spawnTimer >= spawnInterval)
     {
         spawnTimer = 0.f;
-        spawn(road, assets);
+        spawn(road, assets, speedBoost);
     }
 
     for (auto& car : cars)
@@ -114,4 +115,5 @@ void TrafficManager::reset()
 {
     cars.clear();
     spawnTimer = 0.f;
+    spawnInterval = 2.0f;
 }

@@ -19,13 +19,14 @@ struct TrafficManager
 
     bool isLaneSafeForSpawn(int lane, float spawnY) const;
 
-    void spawn(const Road& road, AssetManager& assets);
+    void spawn(const Road& road, AssetManager& assets, float speedBoost = 0.f);
 
     void update(float worldScrollSpeed,
         float deltaTime,
         int windowHeight,
         const Road& road,
-        AssetManager& assets);
+        AssetManager& assets,
+        float speedBoost = 0.f);
 
     void render(gl2d::Renderer2D& renderer);
 
