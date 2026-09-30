@@ -18,6 +18,28 @@ bool TrafficManager::isLaneSafeForSpawn(int lane, float spawnY) const
     return true;
 }
 
+bool TrafficManager::wouldSpawnBlockAllLanes(int candidateLane, float spawnY) const
+{
+    int blockedLanes = 0;
+    for (int l = 0; l < Road::NUM_LANES; ++l)
+    {
+        if (l == candidateLane)
+            continue;
+
+        for (const auto& car : cars)
+        {
+            if (car.lane == l && std::abs(car.position.y - spawnY) < MIN_SPAWN_HEADWAY)
+            {
+                blockedLanes++;
+                break;
+            }
+        }
+    }
+    // If every other lane is already occupied within headway of spawnY,
+    // spawning in candidateLane would block all lanes simultaneously.
+    return blockedLanes >= (Road::NUM_LANES - 1);
+}
+
 void TrafficManager::spawn(const Road& road, AssetManager& assets, float speedBoost)
 {
     if (cars.size() >= MAX_TRAFFIC_CARS)
@@ -34,7 +56,7 @@ void TrafficManager::spawn(const Road& road, AssetManager& assets, float speedBo
     for (int i = 0; i < Road::NUM_LANES; ++i)
     {
         int lane = (startLane + i) % Road::NUM_LANES;
-        if (isLaneSafeForSpawn(lane, spawnY))
+        if (isLaneSafeForSpawn(lane, spawnY) && !wouldSpawnBlockAllLanes(lane, spawnY))
         {
             chosenLane = lane;
             break;
@@ -75,12 +97,17 @@ void TrafficManager::update(
     AssetManager& assets,
     float speedBoost)
 {
-    spawnTimer += deltaTime;
-
-    if (spawnTimer >= spawnInterval)
+    // Gate traffic spawn until minimum cruising speed (160 px/s) to prevent negative relative speeds
+    // and give comfortable onboarding on run start
+    if (worldScrollSpeed >= 160.0f)
     {
-        spawnTimer = 0.f;
-        spawn(road, assets, speedBoost);
+        spawnTimer += deltaTime;
+
+        if (spawnTimer >= spawnInterval)
+        {
+            spawnTimer = 0.f;
+            spawn(road, assets, speedBoost);
+        }
     }
 
     for (auto& car : cars)

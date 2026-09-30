@@ -18,6 +18,7 @@ struct TrafficManager
     static constexpr float MIN_SPAWN_HEADWAY = 250.f;
 
     bool isLaneSafeForSpawn(int lane, float spawnY) const;
+    bool wouldSpawnBlockAllLanes(int candidateLane, float spawnY) const;
 
     void spawn(const Road& road, AssetManager& assets, float speedBoost = 0.f);
 
