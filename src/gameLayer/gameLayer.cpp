@@ -25,9 +25,11 @@
 #include "ui/hud.h"
 #include "ui/menu.h"
 #include "audioManager.h"
+#include "saveSystem.h"
 
 AssetManager assets;
 AudioManager audioManager;
+SaveSystem saveSystem;
 gl2d::Renderer2D renderer;
 Road road;
 Grass grass;
@@ -106,13 +108,18 @@ bool initGame()
     audioManager.init();
     audioManager.loadAssets();
 
+    saveSystem.init();
+    uint32_t loadedHighScore = saveSystem.loadHighScore();
+    game.score.highScore = loadedHighScore;
+    saveSystem.setCachedHighScore(loadedHighScore);
+
     game.player.texture = &assets.blueCar;
 
     resetGame();
     game.state = GameState::MainMenu;
     audioManager.playMenuMusic();
 
-    ilog("Highway Havoc Initialized. State: MainMenu (Press ENTER or SPACE to start)");
+    ilog("Highway Havoc Initialized. State: MainMenu (Press ENTER or SPACE to start) | Loaded High Score:", loadedHighScore);
 
     return true;
 }
@@ -162,6 +169,7 @@ bool gameLogic(float deltaTime)
         else if (platform::isButtonPressedOn(platform::Button::R))
         {
             audioManager.playBeepSound();
+            saveSystem.saveHighScoreIfHigher(game.score.highScore);
             resetGame();
             game.state = GameState::Playing;
             audioManager.playGameplayMusic(true);
@@ -184,6 +192,7 @@ bool gameLogic(float deltaTime)
         if (platform::isButtonPressedOn(platform::Button::R))
         {
             audioManager.playBeepSound();
+            saveSystem.saveHighScoreIfHigher(game.score.highScore);
             resetGame();
             game.state = GameState::Playing;
             audioManager.playGameplayMusic(true);
@@ -192,6 +201,7 @@ bool gameLogic(float deltaTime)
         else if (platform::isButtonPressedOn(platform::Button::Escape))
         {
             audioManager.playBeepSound();
+            saveSystem.saveHighScoreIfHigher(game.score.highScore);
             resetGame();
             game.state = GameState::MainMenu;
             audioManager.playMenuMusic(true);
@@ -312,6 +322,7 @@ bool gameLogic(float deltaTime)
                         game.world.scrollSpeed = 0.f;
                         audioManager.stopMusic();
                         audioManager.playDeathSound();
+                        saveSystem.saveHighScoreIfHigher(game.score.highScore);
                         ilog("GAME OVER! Final Score:", game.score.currentScore, "| High Score:", game.score.highScore);
                         break;
                     }
@@ -353,6 +364,7 @@ bool gameLogic(float deltaTime)
                             game.world.scrollSpeed = 0.f;
                             audioManager.stopMusic();
                             audioManager.playDeathSound();
+                            saveSystem.saveHighScoreIfHigher(game.score.highScore);
                             ilog("GAME OVER! Final Score:", game.score.currentScore, "| High Score:", game.score.highScore);
                             break;
                         }
@@ -371,6 +383,7 @@ bool gameLogic(float deltaTime)
             game.world.scrollSpeed = 0.f;
             audioManager.stopMusic();
             audioManager.playDeathSound();
+            saveSystem.saveHighScoreIfHigher(game.score.highScore);
             ilog("GAME OVER! Final Score:", game.score.currentScore, "| High Score:", game.score.highScore);
         }
     }
@@ -483,6 +496,7 @@ bool gameLogic(float deltaTime)
 
 void closeGame()
 {
+    saveSystem.saveHighScoreIfHigher(game.score.highScore);
     audioManager.cleanup();
     assets.freeAssets();
 }
