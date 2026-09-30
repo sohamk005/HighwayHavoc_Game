@@ -20,6 +20,7 @@
 #include "player.h"
 #include "collision.h"
 #include "scoreSystem.h"
+#include "gameState.h"
 
 AssetManager assets;
 gl2d::Renderer2D renderer;
@@ -52,6 +53,7 @@ struct GameData
     Player player{};
     GameWorld world;
     ScoreSystem score;
+    GameState state = GameState::MainMenu;
 };
 
 GameData game;
@@ -100,6 +102,9 @@ bool initGame()
     game.player.texture = &assets.blueCar;
 
     resetGame();
+    game.state = GameState::MainMenu;
+
+    ilog("Highway Havoc Initialized. State: MainMenu (Press ENTER or SPACE to start)");
 
     return true;
 }
@@ -189,18 +194,67 @@ bool gameLogic(float deltaTime)
 
     renderer.updateWindowMetrics(w, h);
 
-    // Reset gameplay foundation (press R)
-    if (platform::isButtonPressedOn(platform::Button::R))
+    // State machine input handling & transitions
+    switch (game.state)
     {
-        resetGame();
+    case GameState::MainMenu:
+    {
+        if (platform::isButtonPressedOn(platform::Button::Enter) ||
+            platform::isButtonPressedOn(platform::Button::Space))
+        {
+            resetGame();
+            game.state = GameState::Playing;
+            ilog("State Transition: MainMenu -> Playing (Game Started)");
+        }
+        break;
+    }
+    case GameState::Playing:
+    {
+        if (platform::isButtonPressedOn(platform::Button::P))
+        {
+            game.state = GameState::Paused;
+            ilog("State Transition: Playing -> Paused");
+        }
+        else if (platform::isButtonPressedOn(platform::Button::R))
+        {
+            resetGame();
+            game.state = GameState::Playing;
+        }
+        break;
+    }
+    case GameState::Paused:
+    {
+        if (platform::isButtonPressedOn(platform::Button::P))
+        {
+            game.state = GameState::Playing;
+            ilog("State Transition: Paused -> Playing (Resumed)");
+        }
+        break;
+    }
+    case GameState::GameOver:
+    {
+        if (platform::isButtonPressedOn(platform::Button::R))
+        {
+            resetGame();
+            game.state = GameState::Playing;
+            ilog("State Transition: GameOver -> Playing (Restarted)");
+        }
+        else if (platform::isButtonPressedOn(platform::Button::Escape))
+        {
+            resetGame();
+            game.state = GameState::MainMenu;
+            ilog("State Transition: GameOver -> MainMenu (Title Screen)");
+        }
+        break;
+    }
     }
 
     road.update(w);
 
     constexpr float ROAD_MARGIN = 12.f;
 
-    // Active simulation (only when player is alive)
-    if (!game.player.isDead)
+    // Active simulation: executes ONLY when in Playing state
+    if (game.state == GameState::Playing)
     {
         // 1. Update player invulnerability cooldown
         game.player.update(deltaTime);
@@ -281,10 +335,6 @@ bool gameLogic(float deltaTime)
             if (collision::checkAABBOverlap(game.player.position, game.player.size, car.position, car.size))
             {
                 bool tookDamage = game.player.takeDamage(Player::DAMAGE_PER_COLLISION);
-                if (tookDamage && game.player.isDead)
-                {
-                    ilog("GAME OVER! Final Score:", game.score.currentScore, "| High Score:", game.score.highScore);
-                }
                 collision::resolveAABBCollision(game.player.position, game.player.size, car.position, car.size);
 
                 game.player.position.x = glm::clamp(
@@ -301,43 +351,65 @@ bool gameLogic(float deltaTime)
                     game.player.position.y = car.position.y + car.size.y + 1.f;
                     game.player.position.y = glm::clamp(game.player.position.y, 0.f, (float)h - game.player.size.y);
                 }
+
+                if (tookDamage && game.player.isDead)
+                {
+                    game.state = GameState::GameOver;
+                    game.world.scrollSpeed = 0.f;
+                    ilog("GAME OVER! Final Score:", game.score.currentScore, "| High Score:", game.score.highScore);
+                    break;
+                }
             }
         }
 
-        // Player vs. Roadside Obstacles
-        for (const auto& obs : obstacleManager.obstacles)
+        // Player vs. Roadside Obstacles (only if still Playing)
+        if (game.state == GameState::Playing)
         {
-            if (!obs.active)
-                continue;
-
-            if (collision::checkAABBOverlap(game.player.position, game.player.size, obs.position, obs.size))
+            for (const auto& obs : obstacleManager.obstacles)
             {
-                bool tookDamage = game.player.takeDamage(Player::DAMAGE_PER_COLLISION);
-                if (tookDamage && game.player.isDead)
-                {
-                    ilog("GAME OVER! Final Score:", game.score.currentScore, "| High Score:", game.score.highScore);
-                }
-                collision::resolveAABBCollision(game.player.position, game.player.size, obs.position, obs.size);
+                if (!obs.active)
+                    continue;
 
-                game.player.position.x = glm::clamp(
-                    game.player.position.x,
-                    road.left() + ROAD_MARGIN,
-                    road.right() - game.player.size.x - ROAD_MARGIN);
-                game.player.position.y = glm::clamp(
-                    game.player.position.y,
-                    0.f,
-                    (float)h - game.player.size.y);
+                if (collision::checkAABBOverlap(game.player.position, game.player.size, obs.position, obs.size))
+                {
+                    bool tookDamage = game.player.takeDamage(Player::DAMAGE_PER_COLLISION);
+                    collision::resolveAABBCollision(game.player.position, game.player.size, obs.position, obs.size);
+
+                    game.player.position.x = glm::clamp(
+                        game.player.position.x,
+                        road.left() + ROAD_MARGIN,
+                        road.right() - game.player.size.x - ROAD_MARGIN);
+                    game.player.position.y = glm::clamp(
+                        game.player.position.y,
+                        0.f,
+                        (float)h - game.player.size.y);
+
+                    if (tookDamage && game.player.isDead)
+                    {
+                        game.state = GameState::GameOver;
+                        game.world.scrollSpeed = 0.f;
+                        ilog("GAME OVER! Final Score:", game.score.currentScore, "| High Score:", game.score.highScore);
+                        break;
+                    }
+                }
             }
+        }
+
+        if (game.player.isDead && game.state == GameState::Playing)
+        {
+            game.state = GameState::GameOver;
+            game.world.scrollSpeed = 0.f;
+            ilog("GAME OVER! Final Score:", game.score.currentScore, "| High Score:", game.score.highScore);
         }
     }
     else
     {
-        // Death frozen simulation state: world scroll stops completely
+        // Non-playing states (MainMenu, Paused, GameOver): simulation is completely frozen
         game.world.scrollSpeed = 0.f;
     }
 
     //-----------------------------------------------------
-    // Rendering (runs in both active and frozen states)
+    // Rendering (runs in all states to display scene)
     //-----------------------------------------------------
 
     // Grass
@@ -387,8 +459,34 @@ bool gameLogic(float deltaTime)
         *game.player.texture,
         playerColor);
 
-    // Minimal Health Bar HUD
-    renderHealthBar(renderer, game.player.health, Player::MAX_HEALTH);
+    // Minimal Health Bar HUD (visible in Playing, Paused, GameOver)
+    if (game.state != GameState::MainMenu)
+    {
+        renderHealthBar(renderer, game.player.health, Player::MAX_HEALTH);
+    }
+
+    // State visual feedback overlays (font-free visual distinction)
+    if (game.state == GameState::MainMenu)
+    {
+        // MainMenu dark veil
+        renderer.renderRectangle(
+            { 0.f, 0.f, static_cast<float>(w), static_cast<float>(h) },
+            gl2d::Color4f{ 0.05f, 0.05f, 0.12f, 0.45f });
+    }
+    else if (game.state == GameState::Paused)
+    {
+        // Paused dim overlay
+        renderer.renderRectangle(
+            { 0.f, 0.f, static_cast<float>(w), static_cast<float>(h) },
+            gl2d::Color4f{ 0.0f, 0.0f, 0.0f, 0.40f });
+    }
+    else if (game.state == GameState::GameOver)
+    {
+        // GameOver red-tinted dim overlay
+        renderer.renderRectangle(
+            { 0.f, 0.f, static_cast<float>(w), static_cast<float>(h) },
+            gl2d::Color4f{ 0.35f, 0.05f, 0.05f, 0.35f });
+    }
 
     renderer.flush();
 
