@@ -46,6 +46,9 @@ void AssetManager::loadAssets()
     grass.loadFromFile(
         RESOURCES_PATH "textures/environment/land_grass04.png",
         true);
+
+    // ===== Fonts =====
+    font.createFromFile(RESOURCES_PATH "fonts/Roboto-Medium.ttf");
 }
 
 void AssetManager::freeAssets()
@@ -68,4 +71,7 @@ void AssetManager::freeAssets()
     cone.cleanup();
     rock.cleanup();
     grass.cleanup();
+
+    // ===== Fonts =====
+    font.cleanup();
 }

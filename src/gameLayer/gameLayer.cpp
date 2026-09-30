@@ -21,6 +21,9 @@
 #include "collision.h"
 #include "scoreSystem.h"
 #include "gameState.h"
+#include "ui/uiTheme.h"
+#include "ui/hud.h"
+#include "ui/menu.h"
 
 AssetManager assets;
 gl2d::Renderer2D renderer;
@@ -107,77 +110,6 @@ bool initGame()
     ilog("Highway Havoc Initialized. State: MainMenu (Press ENTER or SPACE to start)");
 
     return true;
-}
-
-//=========================================================
-// Minimal Health Bar HUD
-//=========================================================
-
-void renderHealthBar(gl2d::Renderer2D& r, int currentHealth, int maxHealth)
-{
-    constexpr float barX = 24.f;
-    constexpr float barY = 24.f;
-    constexpr float barWidth = 200.f;
-    constexpr float barHeight = 18.f;
-    constexpr float borderPadding = 3.f;
-
-    // Dark outer border/frame
-    r.renderRectangle(
-        {
-            barX - borderPadding,
-            barY - borderPadding,
-            barWidth + 2.f * borderPadding,
-            barHeight + 2.f * borderPadding
-        },
-        gl2d::Color4f{ 0.08f, 0.08f, 0.08f, 0.85f });
-
-    // Empty bar background slot
-    r.renderRectangle(
-        {
-            barX,
-            barY,
-            barWidth,
-            barHeight
-        },
-        gl2d::Color4f{ 0.22f, 0.22f, 0.22f, 0.9f });
-
-    // Health percentage calculation & color threshold
-    float fraction = 0.f;
-    if (maxHealth > 0)
-    {
-        fraction = static_cast<float>(currentHealth) / static_cast<float>(maxHealth);
-    }
-    fraction = std::clamp(fraction, 0.f, 1.f);
-
-    gl2d::Color4f barColor;
-    if (fraction > 0.60f)
-    {
-        // > 60%: Healthy Green
-        barColor = { 0.2f, 0.85f, 0.2f, 1.0f };
-    }
-    else if (fraction > 0.30f)
-    {
-        // 31% - 60%: Damaged Yellow/Orange
-        barColor = { 0.95f, 0.75f, 0.1f, 1.0f };
-    }
-    else
-    {
-        // <= 30%: Critical Red
-        barColor = { 0.9f, 0.2f, 0.2f, 1.0f };
-    }
-
-    float fillWidth = barWidth * fraction;
-    if (fillWidth > 0.f)
-    {
-        r.renderRectangle(
-            {
-                barX,
-                barY,
-                fillWidth,
-                barHeight
-            },
-            barColor);
-    }
 }
 
 //=========================================================
@@ -459,33 +391,45 @@ bool gameLogic(float deltaTime)
         *game.player.texture,
         playerColor);
 
-    // Minimal Health Bar HUD (visible in Playing, Paused, GameOver)
-    if (game.state != GameState::MainMenu)
+    // Player-Facing UI presentation by GameState
+    switch (game.state)
     {
-        renderHealthBar(renderer, game.player.health, Player::MAX_HEALTH);
+    case GameState::MainMenu:
+    {
+        UI::renderMainMenu(renderer, assets.font, game.score.highScore,
+                           static_cast<float>(w), static_cast<float>(h));
+        break;
     }
-
-    // State visual feedback overlays (font-free visual distinction)
-    if (game.state == GameState::MainMenu)
+    case GameState::Playing:
     {
-        // MainMenu dark veil
-        renderer.renderRectangle(
-            { 0.f, 0.f, static_cast<float>(w), static_cast<float>(h) },
-            gl2d::Color4f{ 0.05f, 0.05f, 0.12f, 0.45f });
+        UI::renderPlayingHUD(renderer, assets.font,
+                             game.score.currentScore, game.score.highScore,
+                             game.player.health, Player::MAX_HEALTH,
+                             static_cast<float>(w), static_cast<float>(h));
+        break;
     }
-    else if (game.state == GameState::Paused)
+    case GameState::Paused:
     {
-        // Paused dim overlay
-        renderer.renderRectangle(
-            { 0.f, 0.f, static_cast<float>(w), static_cast<float>(h) },
-            gl2d::Color4f{ 0.0f, 0.0f, 0.0f, 0.40f });
+        UI::renderPlayingHUD(renderer, assets.font,
+                             game.score.currentScore, game.score.highScore,
+                             game.player.health, Player::MAX_HEALTH,
+                             static_cast<float>(w), static_cast<float>(h));
+        UI::renderPauseOverlay(renderer, assets.font,
+                               game.score.currentScore, game.score.highScore,
+                               static_cast<float>(w), static_cast<float>(h));
+        break;
     }
-    else if (game.state == GameState::GameOver)
+    case GameState::GameOver:
     {
-        // GameOver red-tinted dim overlay
-        renderer.renderRectangle(
-            { 0.f, 0.f, static_cast<float>(w), static_cast<float>(h) },
-            gl2d::Color4f{ 0.35f, 0.05f, 0.05f, 0.35f });
+        UI::renderPlayingHUD(renderer, assets.font,
+                             game.score.currentScore, game.score.highScore,
+                             game.player.health, Player::MAX_HEALTH,
+                             static_cast<float>(w), static_cast<float>(h));
+        UI::renderGameOverScreen(renderer, assets.font,
+                                 game.score.currentScore, game.score.highScore,
+                                 static_cast<float>(w), static_cast<float>(h));
+        break;
+    }
     }
 
     renderer.flush();

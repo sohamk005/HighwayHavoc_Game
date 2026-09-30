@@ -24,6 +24,9 @@ struct AssetManager
     // Ground
     gl2d::Texture grass;
 
+    // UI Font
+    gl2d::Font font;
+
     void loadAssets();
     void freeAssets();
 };
