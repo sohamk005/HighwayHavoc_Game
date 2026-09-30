@@ -24,8 +24,10 @@
 #include "ui/uiTheme.h"
 #include "ui/hud.h"
 #include "ui/menu.h"
+#include "audioManager.h"
 
 AssetManager assets;
+AudioManager audioManager;
 gl2d::Renderer2D renderer;
 Road road;
 Grass grass;
@@ -101,11 +103,14 @@ bool initGame()
     renderer.create();
 
     assets.loadAssets();
+    audioManager.init();
+    audioManager.loadAssets();
 
     game.player.texture = &assets.blueCar;
 
     resetGame();
     game.state = GameState::MainMenu;
+    audioManager.playMenuMusic();
 
     ilog("Highway Havoc Initialized. State: MainMenu (Press ENTER or SPACE to start)");
 
@@ -126,6 +131,9 @@ bool gameLogic(float deltaTime)
 
     renderer.updateWindowMetrics(w, h);
 
+    // Audio stream buffer update (must be called every frame for active music streaming)
+    audioManager.update();
+
     // State machine input handling & transitions
     switch (game.state)
     {
@@ -134,8 +142,10 @@ bool gameLogic(float deltaTime)
         if (platform::isButtonPressedOn(platform::Button::Enter) ||
             platform::isButtonPressedOn(platform::Button::Space))
         {
+            audioManager.playBeepSound();
             resetGame();
             game.state = GameState::Playing;
+            audioManager.playGameplayMusic(true);
             ilog("State Transition: MainMenu -> Playing (Game Started)");
         }
         break;
@@ -144,13 +154,17 @@ bool gameLogic(float deltaTime)
     {
         if (platform::isButtonPressedOn(platform::Button::P))
         {
+            audioManager.playBeepSound();
             game.state = GameState::Paused;
+            audioManager.pauseGameplayMusic();
             ilog("State Transition: Playing -> Paused");
         }
         else if (platform::isButtonPressedOn(platform::Button::R))
         {
+            audioManager.playBeepSound();
             resetGame();
             game.state = GameState::Playing;
+            audioManager.playGameplayMusic(true);
         }
         break;
     }
@@ -158,7 +172,9 @@ bool gameLogic(float deltaTime)
     {
         if (platform::isButtonPressedOn(platform::Button::P))
         {
+            audioManager.playBeepSound();
             game.state = GameState::Playing;
+            audioManager.resumeGameplayMusic();
             ilog("State Transition: Paused -> Playing (Resumed)");
         }
         break;
@@ -167,14 +183,18 @@ bool gameLogic(float deltaTime)
     {
         if (platform::isButtonPressedOn(platform::Button::R))
         {
+            audioManager.playBeepSound();
             resetGame();
             game.state = GameState::Playing;
+            audioManager.playGameplayMusic(true);
             ilog("State Transition: GameOver -> Playing (Restarted)");
         }
         else if (platform::isButtonPressedOn(platform::Button::Escape))
         {
+            audioManager.playBeepSound();
             resetGame();
             game.state = GameState::MainMenu;
+            audioManager.playMenuMusic(true);
             ilog("State Transition: GameOver -> MainMenu (Title Screen)");
         }
         break;
@@ -284,12 +304,21 @@ bool gameLogic(float deltaTime)
                     game.player.position.y = glm::clamp(game.player.position.y, 0.f, (float)h - game.player.size.y);
                 }
 
-                if (tookDamage && game.player.isDead)
+                if (tookDamage)
                 {
-                    game.state = GameState::GameOver;
-                    game.world.scrollSpeed = 0.f;
-                    ilog("GAME OVER! Final Score:", game.score.currentScore, "| High Score:", game.score.highScore);
-                    break;
+                    if (game.player.isDead)
+                    {
+                        game.state = GameState::GameOver;
+                        game.world.scrollSpeed = 0.f;
+                        audioManager.stopMusic();
+                        audioManager.playDeathSound();
+                        ilog("GAME OVER! Final Score:", game.score.currentScore, "| High Score:", game.score.highScore);
+                        break;
+                    }
+                    else
+                    {
+                        audioManager.playCollisionSound();
+                    }
                 }
             }
         }
@@ -316,12 +345,21 @@ bool gameLogic(float deltaTime)
                         0.f,
                         (float)h - game.player.size.y);
 
-                    if (tookDamage && game.player.isDead)
+                    if (tookDamage)
                     {
-                        game.state = GameState::GameOver;
-                        game.world.scrollSpeed = 0.f;
-                        ilog("GAME OVER! Final Score:", game.score.currentScore, "| High Score:", game.score.highScore);
-                        break;
+                        if (game.player.isDead)
+                        {
+                            game.state = GameState::GameOver;
+                            game.world.scrollSpeed = 0.f;
+                            audioManager.stopMusic();
+                            audioManager.playDeathSound();
+                            ilog("GAME OVER! Final Score:", game.score.currentScore, "| High Score:", game.score.highScore);
+                            break;
+                        }
+                        else
+                        {
+                            audioManager.playCollisionSound();
+                        }
                     }
                 }
             }
@@ -331,6 +369,8 @@ bool gameLogic(float deltaTime)
         {
             game.state = GameState::GameOver;
             game.world.scrollSpeed = 0.f;
+            audioManager.stopMusic();
+            audioManager.playDeathSound();
             ilog("GAME OVER! Final Score:", game.score.currentScore, "| High Score:", game.score.highScore);
         }
     }
@@ -443,5 +483,6 @@ bool gameLogic(float deltaTime)
 
 void closeGame()
 {
+    audioManager.cleanup();
     assets.freeAssets();
 }
