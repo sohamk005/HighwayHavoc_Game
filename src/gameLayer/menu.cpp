@@ -40,23 +40,26 @@ void renderMainMenu(gl2d::Renderer2D& r, gl2d::Font font,
     UITheme::drawFramedPanel(r, cardX, cardY, cardW, cardH,
                             UITheme::PanelBg, UITheme::PanelBorder, 1.5f);
 
-    r.renderText({ cx, cardY + 20.f }, "CONTROLS", font,
+    r.renderText({ cx, cardY + 18.f }, "CONTROLS", font,
                  UITheme::TextAccent, UITheme::ScaleSmall,
                  4.f, 3.f, true, UITheme::TextShadow);
 
+    // Subtle divider line
+    r.renderRectangle({ cardX + 32.f, cardY + 34.f, cardW - 64.f, 1.f }, UITheme::PanelBorder);
+
     const char* controls[] = {
-        "W / S    -   ACCELERATE / BRAKE",
+        "W / S    -   MOVE UP / DOWN",
         "A / D    -   STEER LEFT / RIGHT",
         "P        -   PAUSE GAME",
         "R        -   QUICK RESTART"
     };
 
     const float lineSpacing = 22.f;
-    const float startLineY = cardY + 48.f;
+    const float startLineY = cardY + 50.f;
     for (size_t i = 0; i < 4; ++i)
     {
         glm::vec2 sz = r.getTextSize(controls[i], font, UITheme::ScaleSmall);
-        float textCenterX = cardX + 32.f + sz.x * 0.5f;
+        float textCenterX = cardX + 36.f + sz.x * 0.5f;
         float textCenterY = startLineY + static_cast<float>(i) * lineSpacing;
 
         r.renderText({ textCenterX, textCenterY }, controls[i], font,
@@ -64,8 +67,8 @@ void renderMainMenu(gl2d::Renderer2D& r, gl2d::Font font,
                      3.f, 3.f, true, UITheme::TextShadow);
     }
 
-    // Session High Score Banner
-    std::string hsStr = "SESSION HIGH SCORE: " + std::to_string(highScore);
+    // High Score Banner
+    std::string hsStr = "ALL-TIME HIGH SCORE: " + std::to_string(highScore);
     r.renderText({ cx, screenHeight * 0.72f }, hsStr.c_str(), font,
                  UITheme::TextAccent, UITheme::ScaleBody,
                  4.f, 3.f, true, UITheme::TextShadow);
@@ -93,12 +96,15 @@ void renderPauseOverlay(gl2d::Renderer2D& r, gl2d::Font font,
                             UITheme::PanelBg, UITheme::PanelBorder, 2.0f);
 
     // Title
-    r.renderText({ cx, cardY + 38.f }, "PAUSED", font,
+    r.renderText({ cx, cardY + 36.f }, "PAUSED", font,
                  UITheme::TextAccent, UITheme::ScaleHeader,
                  5.f, 4.f, true, UITheme::TextShadow);
 
+    // Divider line
+    r.renderRectangle({ cardX + 36.f, cardY + 60.f, cardW - 72.f, 1.f }, UITheme::PanelBorder);
+
     // Resume prompt
-    r.renderText({ cx, cardY + 84.f }, "PRESS P TO RESUME", font,
+    r.renderText({ cx, cardY + 86.f }, "PRESS P TO RESUME", font,
                  UITheme::TextPrimary, UITheme::ScaleSubhead,
                  4.f, 3.f, true, UITheme::TextShadow);
 
@@ -108,7 +114,7 @@ void renderPauseOverlay(gl2d::Renderer2D& r, gl2d::Font font,
                  UITheme::TextPrimary, UITheme::ScaleBody,
                  3.f, 3.f, true, UITheme::TextShadow);
 
-    // Session High Score
+    // High Score
     std::string highStr = "HIGH SCORE:    " + std::to_string(highScore);
     r.renderText({ cx, cardY + 158.f }, highStr.c_str(), font,
                  UITheme::TextSecondary, UITheme::ScaleBody,
@@ -143,14 +149,17 @@ void renderGameOverScreen(gl2d::Renderer2D& r, gl2d::Font font,
                             UITheme::PanelBg, UITheme::PanelBorderDanger, 2.0f);
 
     // Title
-    r.renderText({ cx, cardY + 40.f }, "GAME OVER", font,
+    r.renderText({ cx, cardY + 38.f }, "GAME OVER", font,
                  UITheme::TextDanger, UITheme::ScaleHeader,
                  5.f, 4.f, true, UITheme::TextShadow);
+
+    // Crimson divider line
+    r.renderRectangle({ cardX + 36.f, cardY + 62.f, cardW - 72.f, 1.f }, UITheme::PanelBorderDanger);
 
     // High score notification if achieved
     if (finalScore >= highScore && finalScore > 0)
     {
-        r.renderText({ cx, cardY + 80.f }, "★  NEW HIGH SCORE!  ★", font,
+        r.renderText({ cx, cardY + 84.f }, "★  NEW HIGH SCORE!  ★", font,
                      UITheme::TextAccent, UITheme::ScaleSmall,
                      4.f, 3.f, true, UITheme::TextShadow);
     }

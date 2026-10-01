@@ -15,6 +15,16 @@ void TrafficCar::render(gl2d::Renderer2D& renderer)
     if (!active || texture == nullptr)
         return;
 
+    // Soft ground contact shadow
+    renderer.renderRectangle(
+        {
+            position.x + 3.f,
+            position.y + 4.f,
+            size.x,
+            size.y
+        },
+        gl2d::Color4f{ 0.05f, 0.06f, 0.08f, 0.32f });
+
     renderer.renderRectangle(
         {
             position,

@@ -27,6 +27,34 @@ void Road::render(gl2d::Renderer2D& renderer,
             },
             roadTexture);
     }
+
+    // Outer solid road edge / shoulder stripes
+    constexpr float shoulderWidth = 4.f;
+    const gl2d::Color4f shoulderColor = { 0.92f, 0.92f, 0.96f, 0.85f };
+    renderer.renderRectangle({ position.x, 0.f, shoulderWidth, static_cast<float>(windowHeight) }, shoulderColor);
+    renderer.renderRectangle({ position.x + width - shoulderWidth, 0.f, shoulderWidth, static_cast<float>(windowHeight) }, shoulderColor);
+
+    // Inner scrolling dashed lane divider markings
+    constexpr float dashLength = 40.f;
+    constexpr float dashGap = 40.f;
+    constexpr float dashPeriod = dashLength + dashGap; // 80.f
+    constexpr float dashWidth = 4.f;
+    const gl2d::Color4f dashColor = { 0.96f, 0.94f, 0.82f, 0.85f }; // Clean arcade highway yellow-white
+
+    float dashOffset = std::fmod(scrollOffset, dashPeriod);
+    int dashRows = static_cast<int>(windowHeight / dashPeriod) + 2;
+
+    for (int lane = 1; lane < NUM_LANES; ++lane)
+    {
+        float laneBoundaryX = getLaneLeft(lane) - dashWidth * 0.5f;
+        for (int d = -1; d < dashRows; ++d)
+        {
+            float dashY = d * dashPeriod + dashOffset;
+            renderer.renderRectangle(
+                { laneBoundaryX, dashY, dashWidth, dashLength },
+                dashColor);
+        }
+    }
 }
 
 float Road::left() const

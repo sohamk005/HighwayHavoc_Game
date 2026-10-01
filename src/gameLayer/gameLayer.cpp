@@ -420,19 +420,42 @@ bool gameLogic(float deltaTime)
     // Trees - Obstacles
     obstacleManager.render(renderer);
 
+    // Ground shadow under player car
+    renderer.renderRectangle(
+        {
+            game.player.position.x + 3.f,
+            game.player.position.y + 4.f,
+            game.player.size.x,
+            game.player.size.y
+        },
+        gl2d::Color4f{ 0.05f, 0.06f, 0.08f, 0.35f });
+
     // Player with Collision Feedback
     gl2d::Color4f playerColor = { 1.f, 1.f, 1.f, 1.f };
     if (game.player.isDead)
     {
-        // Darkened / red tint when health reaches zero
-        playerColor = { 0.6f, 0.2f, 0.2f, 0.8f };
+        // Darkened charred wreck tint when dead with crash skid mark
+        renderer.renderRectangle(
+            {
+                game.player.position.x - 4.f,
+                game.player.position.y + game.player.size.y - 12.f,
+                game.player.size.x + 8.f,
+                14.f
+            },
+            gl2d::Color4f{ 0.10f, 0.04f, 0.04f, 0.60f });
+        playerColor = { 0.45f, 0.15f, 0.15f, 0.90f };
     }
     else if (game.player.isInvulnerable())
     {
-        // Flashing visibility/tint during invulnerability
-        if (std::fmod(game.player.invulnerabilityTimer, 0.2f) < 0.1f)
+        // Initial 0.15s high-intensity impact flash
+        if (game.player.invulnerabilityTimer > (Player::INVULNERABILITY_DURATION - 0.15f))
         {
-            playerColor = { 1.f, 0.3f, 0.3f, 0.6f };
+            playerColor = { 1.0f, 0.90f, 0.90f, 0.95f };
+        }
+        // Rhythmic flashing visibility/tint during remainder of recovery cooldown
+        else if (std::fmod(game.player.invulnerabilityTimer, 0.16f) < 0.08f)
+        {
+            playerColor = { 1.0f, 0.35f, 0.35f, 0.50f };
         }
     }
 

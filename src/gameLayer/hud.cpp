@@ -42,6 +42,16 @@ void renderHealthBar(gl2d::Renderer2D& r, gl2d::Font font,
     if (fillWidth > 0.f)
     {
         r.renderRectangle({ x, y, fillWidth, height }, barColor);
+
+        // Top specular highlight
+        r.renderRectangle({ x, y, fillWidth, 2.5f }, gl2d::Color4f{ 1.0f, 1.0f, 1.0f, 0.22f });
+    }
+
+    // Subtle 4-segment tick marks corresponding to 25 HP hits
+    for (int i = 1; i <= 3; ++i)
+    {
+        float tickX = x + width * (static_cast<float>(i) * 0.25f);
+        r.renderRectangle({ tickX - 0.5f, y, 1.5f, height }, gl2d::Color4f{ 0.05f, 0.06f, 0.08f, 0.65f });
     }
 }
 
@@ -90,8 +100,11 @@ void renderPlayingHUD(gl2d::Renderer2D& r, gl2d::Font font,
     const float scoreCardX = screenWidth - scoreCardW - 14.f;
     constexpr float scoreCardY = 14.f;
 
+    bool isNewRecord = (currentScore >= highScore && currentScore > 0);
+    gl2d::Color4f scoreBorderColor = isNewRecord ? UITheme::TextAccent : UITheme::PanelBorder;
+
     UITheme::drawFramedPanel(r, scoreCardX, scoreCardY, scoreCardW, scoreCardH,
-                            UITheme::PanelBg, UITheme::PanelBorder, 1.5f);
+                            UITheme::PanelBg, scoreBorderColor, 1.5f);
 
     if (font.texture.id != 0)
     {
@@ -111,8 +124,9 @@ void renderPlayingHUD(gl2d::Renderer2D& r, gl2d::Font font,
         float bestCenterX = scoreCardX + 12.f + bestSize.x * 0.5f;
         float bestCenterY = scoreCardY + 34.f;
 
+        gl2d::Color4f bestColor = isNewRecord ? UITheme::TextAccent : UITheme::TextSecondary;
         r.renderText({ bestCenterX, bestCenterY }, bestStr.c_str(), font,
-                     UITheme::TextSecondary, UITheme::ScaleSmall,
+                     bestColor, UITheme::ScaleSmall,
                      3.f, 3.f, true, UITheme::TextShadow);
     }
 }
