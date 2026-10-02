@@ -130,6 +130,16 @@ bool initGame()
 
 bool gameLogic(float deltaTime)
 {
+    // Sanity clamp delta time [0.0f, 0.1f] against clock shifts, NaN, or frame lag spikes
+    if (std::isnan(deltaTime) || deltaTime < 0.0f)
+    {
+        deltaTime = 0.0f;
+    }
+    else if (deltaTime > 0.1f)
+    {
+        deltaTime = 0.1f;
+    }
+
     int w = platform::getFrameBufferSizeX();
     int h = platform::getFrameBufferSizeY();
 
@@ -184,6 +194,24 @@ bool gameLogic(float deltaTime)
             game.state = GameState::Playing;
             audioManager.resumeGameplayMusic();
             ilog("State Transition: Paused -> Playing (Resumed)");
+        }
+        else if (platform::isButtonPressedOn(platform::Button::R))
+        {
+            audioManager.playBeepSound();
+            saveSystem.saveHighScoreIfHigher(game.score.highScore);
+            resetGame();
+            game.state = GameState::Playing;
+            audioManager.playGameplayMusic(true);
+            ilog("State Transition: Paused -> Playing (Restarted)");
+        }
+        else if (platform::isButtonPressedOn(platform::Button::Escape))
+        {
+            audioManager.playBeepSound();
+            saveSystem.saveHighScoreIfHigher(game.score.highScore);
+            resetGame();
+            game.state = GameState::MainMenu;
+            audioManager.playMenuMusic(true);
+            ilog("State Transition: Paused -> MainMenu (Title Screen)");
         }
         break;
     }
@@ -519,6 +547,11 @@ bool gameLogic(float deltaTime)
 
 void closeGame()
 {
+    static bool closed = false;
+    if (closed)
+        return;
+    closed = true;
+
     saveSystem.saveHighScoreIfHigher(game.score.highScore);
     audioManager.cleanup();
     assets.freeAssets();
