@@ -24,6 +24,8 @@
 
 #ifdef _WIN32
 #include <Windows.h>
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
 #endif
 
 #undef min
@@ -319,6 +321,37 @@ int main()
 	int w = 960;
 	int h = 720;
 	wind = glfwCreateWindow(w, h, "Highway Havoc", nullptr, nullptr);
+
+#ifdef _WIN32
+	HWND hwnd = glfwGetWin32Window(wind);
+	if (hwnd)
+	{
+		HINSTANCE hInst = GetModuleHandle(NULL);
+		HICON hIconBig = (HICON)LoadImageA(hInst, "IDI_ICON1", IMAGE_ICON, 32, 32, LR_DEFAULTCOLOR);
+		if (!hIconBig)
+		{
+			hIconBig = (HICON)LoadImageA(hInst, "GLFW_ICON", IMAGE_ICON, 32, 32, LR_DEFAULTCOLOR);
+		}
+
+		HICON hIconSmall = (HICON)LoadImageA(hInst, "IDI_ICON1", IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
+		if (!hIconSmall)
+		{
+			hIconSmall = (HICON)LoadImageA(hInst, "GLFW_ICON", IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
+		}
+
+		if (hIconBig)
+		{
+			SendMessage(hwnd, WM_SETICON, ICON_BIG, (LPARAM)hIconBig);
+			SetClassLongPtr(hwnd, GCLP_HICON, (LONG_PTR)hIconBig);
+		}
+		if (hIconSmall)
+		{
+			SendMessage(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)hIconSmall);
+			SetClassLongPtr(hwnd, GCLP_HICONSM, (LONG_PTR)hIconSmall);
+		}
+	}
+#endif
+
 	glfwMakeContextCurrent(wind);
 	glfwSwapInterval(1);
 
