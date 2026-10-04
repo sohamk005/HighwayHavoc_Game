@@ -16,6 +16,9 @@ struct TrafficManager
 
     static constexpr size_t MAX_TRAFFIC_CARS = 6;
     static constexpr float MIN_SPAWN_HEADWAY = 250.f;
+    static constexpr float STARVATION_BIAS_THRESHOLD = 4.0f;
+
+    float laneStarvation[Road::NUM_LANES] = { 0.f, 0.f, 0.f };
 
     bool isLaneSafeForSpawn(int lane, float spawnY) const;
     bool wouldSpawnBlockAllLanes(int candidateLane, float spawnY) const;

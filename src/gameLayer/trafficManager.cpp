@@ -49,24 +49,62 @@ void TrafficManager::spawn(const Road& road, AssetManager& assets, float speedBo
 
     constexpr float spawnY = -80.f;
 
-    // Check candidate lanes starting from a randomized index
-    int startLane = rand() % Road::NUM_LANES;
-    int chosenLane = -1;
+    // 1. Identify safe candidate lanes using authoritative headway & fairness rules
+    int safeLanes[Road::NUM_LANES];
+    int numSafeLanes = 0;
 
-    for (int i = 0; i < Road::NUM_LANES; ++i)
+    for (int l = 0; l < Road::NUM_LANES; ++l)
     {
-        int lane = (startLane + i) % Road::NUM_LANES;
-        if (isLaneSafeForSpawn(lane, spawnY) && !wouldSpawnBlockAllLanes(lane, spawnY))
+        if (isLaneSafeForSpawn(l, spawnY) && !wouldSpawnBlockAllLanes(l, spawnY))
         {
-            chosenLane = lane;
-            break;
+            safeLanes[numSafeLanes++] = l;
         }
     }
 
-    if (chosenLane == -1)
+    if (numSafeLanes == 0)
     {
-        // All lanes currently occupied near spawn point; wait for safe headway
+        // All candidate lanes currently occupied near spawn point; wait for safe headway
         return;
+    }
+
+    int chosenLane = -1;
+
+    if (numSafeLanes == 1)
+    {
+        chosenLane = safeLanes[0];
+    }
+    else
+    {
+        // Find the most starved safe lane
+        int mostStarvedLane = safeLanes[0];
+        float maxStarv = laneStarvation[safeLanes[0]];
+        for (int i = 1; i < numSafeLanes; ++i)
+        {
+            if (laneStarvation[safeLanes[i]] > maxStarv)
+            {
+                maxStarv = laneStarvation[safeLanes[i]];
+                mostStarvedLane = safeLanes[i];
+            }
+        }
+
+        // If a safe lane has gone without traffic beyond threshold, bias selection toward it
+        if (maxStarv >= STARVATION_BIAS_THRESHOLD)
+        {
+            // 80% bias toward the most underserved lane, 20% random among other safe candidates
+            if ((rand() % 100) < 80)
+            {
+                chosenLane = mostStarvedLane;
+            }
+            else
+            {
+                chosenLane = safeLanes[rand() % numSafeLanes];
+            }
+        }
+        else
+        {
+            // When all safe lanes are adequately served, choose randomly
+            chosenLane = safeLanes[rand() % numSafeLanes];
+        }
     }
 
     TrafficCar car;
@@ -128,6 +166,37 @@ void TrafficManager::update(
                 return car.position.y > despawnThreshold;
             }),
         cars.end());
+
+    // Update per-lane starvation tracking:
+    // Meaningful traffic occupancy is defined as an active traffic car
+    // within the visible screen / roadway [0, windowHeight]
+    if (worldScrollSpeed >= 160.0f)
+    {
+        bool laneOccupied[Road::NUM_LANES] = { false, false, false };
+
+        for (const auto& car : cars)
+        {
+            if (car.lane >= 0 && car.lane < Road::NUM_LANES)
+            {
+                if (car.active && (car.position.y + car.size.y >= 0.f) && (car.position.y <= static_cast<float>(windowHeight)))
+                {
+                    laneOccupied[car.lane] = true;
+                }
+            }
+        }
+
+        for (int l = 0; l < Road::NUM_LANES; ++l)
+        {
+            if (laneOccupied[l])
+            {
+                laneStarvation[l] = 0.f;
+            }
+            else
+            {
+                laneStarvation[l] += deltaTime;
+            }
+        }
+    }
 }
 
 void TrafficManager::render(gl2d::Renderer2D& renderer)
@@ -143,4 +212,8 @@ void TrafficManager::reset()
     cars.clear();
     spawnTimer = 0.f;
     spawnInterval = 2.0f;
+    for (int l = 0; l < Road::NUM_LANES; ++l)
+    {
+        laneStarvation[l] = 0.f;
+    }
 }
