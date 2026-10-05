@@ -17,6 +17,7 @@ struct TrafficManager
     static constexpr size_t MAX_TRAFFIC_CARS = 6;
     static constexpr float MIN_SPAWN_HEADWAY = 250.f;
     static constexpr float STARVATION_BIAS_THRESHOLD = 4.0f;
+    static constexpr float MAX_LATERAL_OFFSET = 50.f;
 
     float laneStarvation[Road::NUM_LANES] = { 0.f, 0.f, 0.f };
 

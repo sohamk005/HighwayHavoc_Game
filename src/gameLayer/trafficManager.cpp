@@ -110,7 +110,8 @@ void TrafficManager::spawn(const Road& road, AssetManager& assets, float speedBo
     TrafficCar car;
     car.lane = chosenLane;
     car.size = { 60.f, 80.f };
-    car.position.x = road.getLaneCenter(chosenLane) - car.size.x / 2.f;
+    float lateralOffset = static_cast<float>((rand() % 101) - 50); // [-50.f, +50.f] across lane
+    car.position.x = road.getLaneCenter(chosenLane) - car.size.x / 2.f + lateralOffset;
     car.position.y = -car.size.y;
     car.forwardSpeed = 160.f + static_cast<float>(rand() % 80) + speedBoost; // [160, 240] + speedBoost
     car.active = true;
