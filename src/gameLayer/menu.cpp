@@ -7,7 +7,8 @@ namespace UI
 
 void renderMainMenu(gl2d::Renderer2D& r, gl2d::Font font,
                     uint32_t highScore,
-                    float screenWidth, float screenHeight)
+                    float screenWidth, float screenHeight,
+                    uint32_t walletBalance)
 {
     // Fullscreen backdrop dim
     r.renderRectangle({ 0.f, 0.f, screenWidth, screenHeight }, UITheme::BackdropDim);
@@ -70,6 +71,12 @@ void renderMainMenu(gl2d::Renderer2D& r, gl2d::Font font,
     // High Score Banner
     std::string hsStr = "ALL-TIME HIGH SCORE: " + std::to_string(highScore);
     r.renderText({ cx, screenHeight * 0.72f }, hsStr.c_str(), font,
+                 UITheme::TextAccent, UITheme::ScaleBody,
+                 4.f, 3.f, true, UITheme::TextShadow);
+
+    // Wallet Total Coins Banner (V2-M2)
+    std::string walletStr = "TOTAL COINS: " + std::to_string(walletBalance);
+    r.renderText({ cx, screenHeight * 0.77f }, walletStr.c_str(), font,
                  UITheme::TextAccent, UITheme::ScaleBody,
                  4.f, 3.f, true, UITheme::TextShadow);
 }
@@ -136,7 +143,8 @@ void renderPauseOverlay(gl2d::Renderer2D& r, gl2d::Font font,
 void renderGameOverScreen(gl2d::Renderer2D& r, gl2d::Font font,
                           uint32_t finalScore, uint32_t highScore,
                           float screenWidth, float screenHeight,
-                          uint32_t finalCoins)
+                          uint32_t finalCoins,
+                          uint32_t walletBalance)
 {
     // Fullscreen backdrop dim with dark red undertone
     r.renderRectangle({ 0.f, 0.f, screenWidth, screenHeight },
@@ -149,7 +157,7 @@ void renderGameOverScreen(gl2d::Renderer2D& r, gl2d::Font font,
 
     // Centered modal card with crimson border
     constexpr float cardW = 440.f;
-    constexpr float cardH = 310.f;
+    constexpr float cardH = 336.f;
     const float cardX = cx - cardW * 0.5f;
     const float cardY = cy - cardH * 0.5f;
 
@@ -185,12 +193,19 @@ void renderGameOverScreen(gl2d::Renderer2D& r, gl2d::Font font,
                  4.f, 3.f, true, UITheme::TextShadow);
     textOffsetY += 30.f;
 
-    // Coins Collected
-    std::string coinsStr = "COINS: " + std::to_string(finalCoins);
+    // Coins Collected in Current Run
+    std::string coinsStr = "RUN COINS:   " + std::to_string(finalCoins);
     r.renderText({ cx, textOffsetY }, coinsStr.c_str(), font,
                  UITheme::TextAccent, UITheme::ScaleBody,
                  3.f, 3.f, true, UITheme::TextShadow);
-    textOffsetY += 28.f;
+    textOffsetY += 26.f;
+
+    // Total Banked Wallet Balance
+    std::string totalStr = "TOTAL COINS: " + std::to_string(walletBalance);
+    r.renderText({ cx, textOffsetY }, totalStr.c_str(), font,
+                 UITheme::TextAccent, UITheme::ScaleBody,
+                 3.f, 3.f, true, UITheme::TextShadow);
+    textOffsetY += 26.f;
 
     // High Score
     std::string highStr = "HIGH SCORE:  " + std::to_string(highScore);
@@ -199,11 +214,11 @@ void renderGameOverScreen(gl2d::Renderer2D& r, gl2d::Font font,
                  3.f, 3.f, true, UITheme::TextShadow);
 
     // Action Prompts
-    r.renderText({ cx, cardY + 234.f }, "PRESS R TO RESTART", font,
+    r.renderText({ cx, cardY + 260.f }, "PRESS R TO RESTART", font,
                  UITheme::TextSuccess, UITheme::ScaleBody,
                  4.f, 3.f, true, UITheme::TextShadow);
 
-    r.renderText({ cx, cardY + 270.f }, "PRESS ESC TO RETURN TO MAIN MENU", font,
+    r.renderText({ cx, cardY + 296.f }, "PRESS ESC TO RETURN TO MAIN MENU", font,
                  UITheme::TextSecondary, UITheme::ScaleSmall,
                  3.f, 3.f, true, UITheme::TextShadow);
 }

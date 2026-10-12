@@ -63,6 +63,7 @@ struct GameData
     GameWorld world;
     ScoreSystem score;
     uint32_t coinCount = 0;
+    uint64_t currentRunId = 1;
     GameState state = GameState::MainMenu;
 };
 
@@ -74,6 +75,11 @@ GameData game;
 
 void resetGame()
 {
+    // V2-M2: Bank unbanked coins from the completed/abandoned run exactly once
+    saveSystem.bankRun(game.currentRunId, game.coinCount);
+    game.coinCount = 0;
+    game.currentRunId++;
+
     int w = platform::getFrameBufferSizeX();
     int h = platform::getFrameBufferSizeY();
 
@@ -89,14 +95,30 @@ void resetGame()
 
     // Reset current run score & difficulty; session high score is preserved!
     game.score.resetRun();
-    game.coinCount = 0;
     game.world.maxScrollSpeed = game.score.getMaxScrollSpeed();
 
     obstacleManager.reset();
     trafficManager.reset();
     coinManager.reset();
 
-    ilog("Run Reset. High Score:", game.score.highScore);
+    ilog("Run Reset. High Score:", game.score.highScore, "| Total Wallet:", saveSystem.getCachedWalletBalance());
+}
+
+void triggerGameOver()
+{
+    if (game.state == GameState::GameOver)
+        return;
+
+    game.state = GameState::GameOver;
+    game.world.scrollSpeed = 0.f;
+    audioManager.stopMusic();
+    audioManager.playDeathSound();
+    saveSystem.saveHighScoreIfHigher(game.score.highScore);
+    saveSystem.bankRun(game.currentRunId, game.coinCount);
+    ilog("GAME OVER! Final Score:", game.score.currentScore,
+         "| High Score:", game.score.highScore,
+         "| Run Coins:", game.coinCount,
+         "| Banked Wallet:", saveSystem.getCachedWalletBalance());
 }
 
 //=========================================================
@@ -120,13 +142,16 @@ bool initGame()
     game.score.highScore = loadedHighScore;
     saveSystem.setCachedHighScore(loadedHighScore);
 
+    uint32_t loadedWallet = saveSystem.loadWallet();
+    game.currentRunId = saveSystem.getLastBankedRunId() + 1;
+
     game.player.texture = &assets.blueCar;
 
     resetGame();
     game.state = GameState::MainMenu;
     audioManager.playMenuMusic();
 
-    ilog("Highway Havoc Initialized. State: MainMenu (Press ENTER or SPACE to start) | Loaded High Score:", loadedHighScore);
+    ilog("Highway Havoc Initialized. State: MainMenu (Press ENTER or SPACE to start) | High Score:", loadedHighScore, "| Wallet:", loadedWallet);
 
     return true;
 }
@@ -375,12 +400,7 @@ bool gameLogic(float deltaTime)
                 {
                     if (game.player.isDead)
                     {
-                        game.state = GameState::GameOver;
-                        game.world.scrollSpeed = 0.f;
-                        audioManager.stopMusic();
-                        audioManager.playDeathSound();
-                        saveSystem.saveHighScoreIfHigher(game.score.highScore);
-                        ilog("GAME OVER! Final Score:", game.score.currentScore, "| High Score:", game.score.highScore);
+                        triggerGameOver();
                         break;
                     }
                     else
@@ -417,12 +437,7 @@ bool gameLogic(float deltaTime)
                     {
                         if (game.player.isDead)
                         {
-                            game.state = GameState::GameOver;
-                            game.world.scrollSpeed = 0.f;
-                            audioManager.stopMusic();
-                            audioManager.playDeathSound();
-                            saveSystem.saveHighScoreIfHigher(game.score.highScore);
-                            ilog("GAME OVER! Final Score:", game.score.currentScore, "| High Score:", game.score.highScore);
+                            triggerGameOver();
                             break;
                         }
                         else
@@ -436,12 +451,7 @@ bool gameLogic(float deltaTime)
 
         if (game.player.isDead && game.state == GameState::Playing)
         {
-            game.state = GameState::GameOver;
-            game.world.scrollSpeed = 0.f;
-            audioManager.stopMusic();
-            audioManager.playDeathSound();
-            saveSystem.saveHighScoreIfHigher(game.score.highScore);
-            ilog("GAME OVER! Final Score:", game.score.currentScore, "| High Score:", game.score.highScore);
+            triggerGameOver();
         }
     }
     else
@@ -533,7 +543,8 @@ bool gameLogic(float deltaTime)
     case GameState::MainMenu:
     {
         UI::renderMainMenu(renderer, assets.font, game.score.highScore,
-                           static_cast<float>(w), static_cast<float>(h));
+                           static_cast<float>(w), static_cast<float>(h),
+                           saveSystem.getCachedWalletBalance());
         break;
     }
     case GameState::Playing:
@@ -568,7 +579,8 @@ bool gameLogic(float deltaTime)
         UI::renderGameOverScreen(renderer, assets.font,
                                  game.score.currentScore, game.score.highScore,
                                  static_cast<float>(w), static_cast<float>(h),
-                                 game.coinCount);
+                                 game.coinCount,
+                                 saveSystem.getCachedWalletBalance());
         break;
     }
     }
@@ -590,6 +602,7 @@ void closeGame()
     closed = true;
 
     saveSystem.saveHighScoreIfHigher(game.score.highScore);
+    saveSystem.bankRun(game.currentRunId, game.coinCount);
     audioManager.cleanup();
     assets.freeAssets();
-}
+}
