@@ -14,6 +14,7 @@ struct Player
     // Health, Damage, and Invulnerability
     static constexpr int MAX_HEALTH = 100;
     static constexpr int DAMAGE_PER_COLLISION = 25;
+    static constexpr int HEAL_PER_PICKUP = 25;
     static constexpr float INVULNERABILITY_DURATION = 1.5f;
 
     int health = MAX_HEALTH;
@@ -38,6 +39,20 @@ struct Player
         }
 
         invulnerabilityTimer = INVULNERABILITY_DURATION;
+        return true;
+    }
+
+    bool heal(int amount = HEAL_PER_PICKUP)
+    {
+        if (isDead || health >= MAX_HEALTH)
+            return false;
+
+        health += amount;
+        if (health > MAX_HEALTH)
+        {
+            health = MAX_HEALTH;
+        }
+
         return true;
     }
 

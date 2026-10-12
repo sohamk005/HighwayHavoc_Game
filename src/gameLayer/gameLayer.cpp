@@ -18,6 +18,7 @@
 #include "obstacleManager.h"
 #include "trafficManager.h"
 #include "coinManager.h"
+#include "healthPickupManager.h"
 #include "player.h"
 #include "collision.h"
 #include "scoreSystem.h"
@@ -37,6 +38,7 @@ Grass grass;
 ObstacleManager obstacleManager;
 TrafficManager trafficManager;
 CoinManager coinManager;
+HealthPickupManager healthPickupManager;
 
 //=========================================================
 // Game World --
@@ -100,6 +102,7 @@ void resetGame()
     obstacleManager.reset();
     trafficManager.reset();
     coinManager.reset();
+    healthPickupManager.reset();
 
     ilog("Run Reset. High Score:", game.score.highScore, "| Total Wallet:", saveSystem.getCachedWalletBalance());
 }
@@ -136,6 +139,7 @@ bool initGame()
     audioManager.loadAssets();
 
     coinManager.init();
+    healthPickupManager.init();
 
     saveSystem.init();
     uint32_t loadedHighScore = saveSystem.loadHighScore();
@@ -355,6 +359,14 @@ bool gameLogic(float deltaTime)
             &assets.coin,
             trafficManager.cars);
 
+        healthPickupManager.update(
+            game.world.scrollSpeed,
+            deltaTime,
+            h,
+            road,
+            nullptr, // uses procedural cross rendering
+            trafficManager.cars);
+
         // 6. Collision Detection & Response
         // Player vs. Collectible Coins
         for (auto& coin : coinManager.coins)
@@ -367,6 +379,27 @@ bool gameLogic(float deltaTime)
                 coin.active = false;
                 game.coinCount++;
                 audioManager.playBeepSound();
+            }
+        }
+
+        // Player vs. Health Pickups
+        for (auto& pickup : healthPickupManager.pickups)
+        {
+            if (!pickup.active)
+                continue;
+
+            if (collision::checkAABBOverlap(game.player.position, game.player.size, pickup.position, pickup.size))
+            {
+                // Full-health policy: Only consume if player health is below MAX_HEALTH
+                if (game.player.health < Player::MAX_HEALTH)
+                {
+                    bool healed = game.player.heal(Player::HEAL_PER_PICKUP);
+                    if (healed)
+                    {
+                        pickup.active = false;
+                        audioManager.playBeepSound();
+                    }
+                }
             }
         }
 
@@ -483,6 +516,9 @@ bool gameLogic(float deltaTime)
 
     // Collectible Coins
     coinManager.render(renderer);
+
+    // Collectible Health Pickups
+    healthPickupManager.render(renderer);
 
     // Traffic Cars
     trafficManager.render(renderer);
