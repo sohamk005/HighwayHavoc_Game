@@ -149,13 +149,17 @@ bool initGame()
     uint32_t loadedWallet = saveSystem.loadWallet();
     game.currentRunId = saveSystem.getLastBankedRunId() + 1;
 
+    bool musicPref = saveSystem.loadMusicPreference();
+    audioManager.setMusicEnabled(musicPref);
+
     game.player.texture = &assets.blueCar;
 
     resetGame();
     game.state = GameState::MainMenu;
     audioManager.playMenuMusic();
 
-    ilog("Highway Havoc Initialized. State: MainMenu (Press ENTER or SPACE to start) | High Score:", loadedHighScore, "| Wallet:", loadedWallet);
+    ilog("Highway Havoc Initialized. State: MainMenu (Press ENTER or SPACE to start) | High Score:", loadedHighScore,
+         "| Wallet:", loadedWallet, "| Music:", musicPref ? "ON" : "OFF");
 
     return true;
 }
@@ -186,6 +190,16 @@ bool gameLogic(float deltaTime)
 
     // Audio stream buffer update (must be called every frame for active music streaming)
     audioManager.update();
+
+    // V2-M4: Global / accessible music toggle (M key)
+    if (platform::isButtonPressedOn(platform::Button::M))
+    {
+        bool newMusicState = !audioManager.isMusicEnabled();
+        audioManager.setMusicEnabled(newMusicState);
+        saveSystem.saveMusicPreference(newMusicState);
+        audioManager.playBeepSound();
+        ilog("Audio Preference Toggled: Music is now", newMusicState ? "ON" : "OFF");
+    }
 
     // State machine input handling & transitions
     switch (game.state)
@@ -580,7 +594,8 @@ bool gameLogic(float deltaTime)
     {
         UI::renderMainMenu(renderer, assets.font, game.score.highScore,
                            static_cast<float>(w), static_cast<float>(h),
-                           saveSystem.getCachedWalletBalance());
+                           saveSystem.getCachedWalletBalance(),
+                           audioManager.isMusicEnabled());
         break;
     }
     case GameState::Playing:
@@ -602,7 +617,8 @@ bool gameLogic(float deltaTime)
         UI::renderPauseOverlay(renderer, assets.font,
                                game.score.currentScore, game.score.highScore,
                                static_cast<float>(w), static_cast<float>(h),
-                               game.coinCount);
+                               game.coinCount,
+                               audioManager.isMusicEnabled());
         break;
     }
     case GameState::GameOver:

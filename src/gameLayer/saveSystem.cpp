@@ -51,6 +51,8 @@ void SaveSystem::init(const std::string& customSaveDir)
     m_walletFilePath = m_saveDir / "wallet.txt";
     m_walletTempPath = m_saveDir / "wallet.txt.tmp";
     m_walletPendingPath = m_saveDir / "wallet_pending.txt";
+    m_settingsFilePath = m_saveDir / "settings.txt";
+    m_settingsTempPath = m_saveDir / "settings.txt.tmp";
     m_isInitialized = true;
 }
 
@@ -502,3 +504,144 @@ bool SaveSystem::bankRun(uint64_t runId, uint32_t runCoins)
 
     return saved;
 }
+
+// ==========================================
+// V2-M4: Audio & Settings Persistence
+// ==========================================
+
+bool SaveSystem::validateMusicSettingString(const std::string& str, bool& outEnabled)
+{
+    outEnabled = true;
+
+    // Trim leading whitespace
+    size_t start = 0;
+    while (start < str.size() && (str[start] == ' ' || str[start] == '\t' || str[start] == '\r' || str[start] == '\n'))
+    {
+        start++;
+    }
+    if (start >= str.size())
+    {
+        return false;
+    }
+
+    // Trim trailing whitespace
+    size_t end = str.size() - 1;
+    while (end > start && (str[end] == ' ' || str[end] == '\t' || str[end] == '\r' || str[end] == '\n'))
+    {
+        end--;
+    }
+
+    std::string token = str.substr(start, end - start + 1);
+
+    // If formatted as key=value (e.g. music=1)
+    if (token.rfind("music=", 0) == 0)
+    {
+        token = token.substr(6);
+    }
+
+    if (token == "1" || token == "true" || token == "TRUE" || token == "on" || token == "ON")
+    {
+        outEnabled = true;
+        return true;
+    }
+    if (token == "0" || token == "false" || token == "FALSE" || token == "off" || token == "OFF")
+    {
+        outEnabled = false;
+        return true;
+    }
+
+    return false;
+}
+
+bool SaveSystem::loadMusicPreference()
+{
+    if (!m_isInitialized)
+    {
+        init();
+    }
+
+    std::error_code ec;
+    if (!std::filesystem::exists(m_settingsFilePath, ec))
+    {
+        m_cachedMusicEnabled = true;
+        return true; // Default to ON when no saved preference exists
+    }
+
+    std::ifstream in(m_settingsFilePath, std::ios::in);
+    if (!in.is_open())
+    {
+        m_cachedMusicEnabled = true;
+        return true;
+    }
+
+    std::string content;
+    char buffer[128] = {};
+    in.read(buffer, sizeof(buffer) - 1);
+    content = buffer;
+    in.close();
+
+    bool parsedEnabled = true;
+    if (validateMusicSettingString(content, parsedEnabled))
+    {
+        m_cachedMusicEnabled = parsedEnabled;
+        return parsedEnabled;
+    }
+
+    // Corrupted or unrecognized data defaults safely to ON
+    m_cachedMusicEnabled = true;
+    return true;
+}
+
+bool SaveSystem::saveMusicPreference(bool enabled)
+{
+    if (!m_isInitialized)
+    {
+        init();
+    }
+
+    std::error_code ec;
+    std::filesystem::create_directories(m_saveDir, ec);
+
+    // 1. Write to temporary settings file
+    {
+        std::ofstream out(m_settingsTempPath, std::ios::out | std::ios::trunc);
+        if (!out.is_open())
+        {
+            return false;
+        }
+
+        out << "music=" << (enabled ? "1" : "0") << "\n";
+        out.flush();
+
+        if (!out.good())
+        {
+            out.close();
+            std::filesystem::remove(m_settingsTempPath, ec);
+            return false;
+        }
+        out.close();
+    }
+
+    // 2. Safe atomic replacement
+#ifdef _WIN32
+    BOOL ok = MoveFileExA(m_settingsTempPath.string().c_str(),
+                          m_settingsFilePath.string().c_str(),
+                          MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+    if (!ok)
+    {
+        std::filesystem::remove(m_settingsTempPath, ec);
+        return false;
+    }
+#else
+    std::filesystem::rename(m_settingsTempPath, m_settingsFilePath, ec);
+    if (ec)
+    {
+        std::filesystem::remove(m_settingsTempPath, ec);
+        return false;
+    }
+#endif
+
+    m_cachedMusicEnabled = enabled;
+    return true;
+}
+

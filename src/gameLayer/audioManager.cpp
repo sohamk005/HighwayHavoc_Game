@@ -106,9 +106,49 @@ void AudioManager::cleanup()
     m_isInitialized = false;
 }
 
+void AudioManager::setMusicEnabled(bool enabled)
+{
+    if (m_musicEnabled == enabled)
+    {
+        return;
+    }
+
+    m_musicEnabled = enabled;
+
+    if (!m_musicEnabled)
+    {
+        // Mute/stop active audio streams while keeping m_currentTrack and m_isPaused state intact
+        if (m_currentTrack == MusicTrack::Gameplay && isGameplayMusicLoaded())
+        {
+            StopMusicStream(m_gameplayMusic);
+        }
+        else if (m_currentTrack == MusicTrack::Menu && isMenuMusicLoaded())
+        {
+            StopMusicStream(m_menuMusic);
+        }
+    }
+    else
+    {
+        // Music unmuted: restore current track if not paused
+        if (!m_isPaused)
+        {
+            if (m_currentTrack == MusicTrack::Gameplay && isGameplayMusicLoaded())
+            {
+                PlayMusicStream(m_gameplayMusic);
+                SetMusicVolume(m_gameplayMusic, m_musicVolume);
+            }
+            else if (m_currentTrack == MusicTrack::Menu && isMenuMusicLoaded())
+            {
+                PlayMusicStream(m_menuMusic);
+                SetMusicVolume(m_menuMusic, m_musicVolume);
+            }
+        }
+    }
+}
+
 void AudioManager::update()
 {
-    if (!isAudioReady() || m_isPaused)
+    if (!isAudioReady() || m_isPaused || !m_musicEnabled)
     {
         return;
     }
@@ -142,8 +182,11 @@ void AudioManager::playMenuMusic(bool restart)
         {
             StopMusicStream(m_menuMusic);
         }
-        PlayMusicStream(m_menuMusic);
-        SetMusicVolume(m_menuMusic, m_musicVolume);
+        if (m_musicEnabled)
+        {
+            PlayMusicStream(m_menuMusic);
+            SetMusicVolume(m_menuMusic, m_musicVolume);
+        }
     }
 
     m_currentTrack = MusicTrack::Menu;
@@ -169,8 +212,11 @@ void AudioManager::playGameplayMusic(bool restart)
         {
             StopMusicStream(m_gameplayMusic);
         }
-        PlayMusicStream(m_gameplayMusic);
-        SetMusicVolume(m_gameplayMusic, m_musicVolume);
+        if (m_musicEnabled)
+        {
+            PlayMusicStream(m_gameplayMusic);
+            SetMusicVolume(m_gameplayMusic, m_musicVolume);
+        }
     }
 
     m_currentTrack = MusicTrack::Gameplay;
@@ -181,7 +227,7 @@ void AudioManager::pauseGameplayMusic()
 {
     if (m_currentTrack == MusicTrack::Gameplay && !m_isPaused)
     {
-        if (isGameplayMusicLoaded())
+        if (isGameplayMusicLoaded() && m_musicEnabled)
         {
             PauseMusicStream(m_gameplayMusic);
         }
@@ -193,7 +239,7 @@ void AudioManager::resumeGameplayMusic()
 {
     if (m_currentTrack == MusicTrack::Gameplay && m_isPaused)
     {
-        if (isGameplayMusicLoaded())
+        if (isGameplayMusicLoaded() && m_musicEnabled)
         {
             ResumeMusicStream(m_gameplayMusic);
         }

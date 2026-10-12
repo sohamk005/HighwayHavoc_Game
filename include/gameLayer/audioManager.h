@@ -49,6 +49,10 @@ public:
     float getSfxVolume() const { return m_sfxVolume; }
     float getBeepVolume() const { return m_beepVolume; }
 
+    // Music Enabled / Disabled Preference (V2-M4)
+    void setMusicEnabled(bool enabled);
+    bool isMusicEnabled() const { return m_musicEnabled; }
+
     // State Inspection
     MusicTrack getCurrentTrack() const { return m_currentTrack; }
     bool isMusicPaused() const { return m_isPaused; }
@@ -77,4 +81,6 @@ private:
     float m_musicVolume = 0.50f;
     float m_sfxVolume = 0.85f;
     float m_beepVolume = 0.60f;
+
+    bool m_musicEnabled = true;
 };

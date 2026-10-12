@@ -8,7 +8,8 @@ namespace UI
 void renderMainMenu(gl2d::Renderer2D& r, gl2d::Font font,
                     uint32_t highScore,
                     float screenWidth, float screenHeight,
-                    uint32_t walletBalance)
+                    uint32_t walletBalance,
+                    bool musicEnabled)
 {
     // Fullscreen backdrop dim
     r.renderRectangle({ 0.f, 0.f, screenWidth, screenHeight }, UITheme::BackdropDim);
@@ -28,15 +29,15 @@ void renderMainMenu(gl2d::Renderer2D& r, gl2d::Font font,
                  4.f, 3.f, true, UITheme::TextShadow);
 
     // Call to Action
-    r.renderText({ cx, screenHeight * 0.36f }, "PRESS ENTER OR SPACE TO START", font,
+    r.renderText({ cx, screenHeight * 0.35f }, "PRESS ENTER OR SPACE TO START", font,
                  UITheme::TextPrimary, UITheme::ScaleSubhead,
                  4.f, 3.f, true, UITheme::TextShadow);
 
-    // Controls Card
+    // Controls Card (expanded height to 170.f to accommodate M toggle)
     constexpr float cardW = 390.f;
-    constexpr float cardH = 150.f;
+    constexpr float cardH = 170.f;
     const float cardX = cx - cardW * 0.5f;
-    const float cardY = screenHeight * 0.44f;
+    const float cardY = screenHeight * 0.42f;
 
     UITheme::drawFramedPanel(r, cardX, cardY, cardW, cardH,
                             UITheme::PanelBg, UITheme::PanelBorder, 1.5f);
@@ -52,12 +53,13 @@ void renderMainMenu(gl2d::Renderer2D& r, gl2d::Font font,
         "W / S    -   MOVE UP / DOWN",
         "A / D    -   STEER LEFT / RIGHT",
         "P        -   PAUSE GAME",
-        "R        -   QUICK RESTART"
+        "R        -   QUICK RESTART",
+        "M        -   TOGGLE MUSIC"
     };
 
     const float lineSpacing = 22.f;
-    const float startLineY = cardY + 50.f;
-    for (size_t i = 0; i < 4; ++i)
+    const float startLineY = cardY + 48.f;
+    for (size_t i = 0; i < 5; ++i)
     {
         glm::vec2 sz = r.getTextSize(controls[i], font, UITheme::ScaleSmall);
         float textCenterX = cardX + 36.f + sz.x * 0.5f;
@@ -68,15 +70,22 @@ void renderMainMenu(gl2d::Renderer2D& r, gl2d::Font font,
                      3.f, 3.f, true, UITheme::TextShadow);
     }
 
+    // Music Status Indicator
+    std::string musicStr = std::string("MUSIC: ") + (musicEnabled ? "ON" : "OFF");
+    gl2d::Color4f musicColor = musicEnabled ? UITheme::TextSuccess : UITheme::TextSecondary;
+    r.renderText({ cx, screenHeight * 0.70f }, musicStr.c_str(), font,
+                 musicColor, UITheme::ScaleBody,
+                 4.f, 3.f, true, UITheme::TextShadow);
+
     // High Score Banner
     std::string hsStr = "ALL-TIME HIGH SCORE: " + std::to_string(highScore);
-    r.renderText({ cx, screenHeight * 0.72f }, hsStr.c_str(), font,
+    r.renderText({ cx, screenHeight * 0.745f }, hsStr.c_str(), font,
                  UITheme::TextAccent, UITheme::ScaleBody,
                  4.f, 3.f, true, UITheme::TextShadow);
 
     // Wallet Total Coins Banner (V2-M2)
     std::string walletStr = "TOTAL COINS: " + std::to_string(walletBalance);
-    r.renderText({ cx, screenHeight * 0.77f }, walletStr.c_str(), font,
+    r.renderText({ cx, screenHeight * 0.79f }, walletStr.c_str(), font,
                  UITheme::TextAccent, UITheme::ScaleBody,
                  4.f, 3.f, true, UITheme::TextShadow);
 }
@@ -84,7 +93,8 @@ void renderMainMenu(gl2d::Renderer2D& r, gl2d::Font font,
 void renderPauseOverlay(gl2d::Renderer2D& r, gl2d::Font font,
                         uint32_t currentScore, uint32_t highScore,
                         float screenWidth, float screenHeight,
-                        uint32_t currentCoins)
+                        uint32_t currentCoins,
+                        bool musicEnabled)
 {
     // Fullscreen backdrop dim
     r.renderRectangle({ 0.f, 0.f, screenWidth, screenHeight }, UITheme::BackdropDim);
@@ -96,7 +106,7 @@ void renderPauseOverlay(gl2d::Renderer2D& r, gl2d::Font font,
 
     // Centered modal card
     constexpr float cardW = 400.f;
-    constexpr float cardH = 264.f;
+    constexpr float cardH = 290.f;
     const float cardX = cx - cardW * 0.5f;
     const float cardY = cy - cardH * 0.5f;
 
@@ -104,38 +114,49 @@ void renderPauseOverlay(gl2d::Renderer2D& r, gl2d::Font font,
                             UITheme::PanelBg, UITheme::PanelBorder, 2.0f);
 
     // Title
-    r.renderText({ cx, cardY + 34.f }, "PAUSED", font,
+    r.renderText({ cx, cardY + 32.f }, "PAUSED", font,
                  UITheme::TextAccent, UITheme::ScaleHeader,
                  5.f, 4.f, true, UITheme::TextShadow);
 
     // Divider line
-    r.renderRectangle({ cardX + 36.f, cardY + 56.f, cardW - 72.f, 1.f }, UITheme::PanelBorder);
+    r.renderRectangle({ cardX + 36.f, cardY + 54.f, cardW - 72.f, 1.f }, UITheme::PanelBorder);
 
     // Resume prompt
-    r.renderText({ cx, cardY + 80.f }, "PRESS P TO RESUME", font,
+    r.renderText({ cx, cardY + 76.f }, "PRESS P TO RESUME", font,
                  UITheme::TextPrimary, UITheme::ScaleSubhead,
                  4.f, 3.f, true, UITheme::TextShadow);
 
     // Current Score
     std::string scoreStr = "CURRENT SCORE: " + std::to_string(currentScore);
-    r.renderText({ cx, cardY + 118.f }, scoreStr.c_str(), font,
+    r.renderText({ cx, cardY + 112.f }, scoreStr.c_str(), font,
                  UITheme::TextPrimary, UITheme::ScaleBody,
                  3.f, 3.f, true, UITheme::TextShadow);
 
     // Coins
     std::string coinStr = "COINS:         " + std::to_string(currentCoins);
-    r.renderText({ cx, cardY + 146.f }, coinStr.c_str(), font,
+    r.renderText({ cx, cardY + 138.f }, coinStr.c_str(), font,
                  UITheme::TextAccent, UITheme::ScaleBody,
                  3.f, 3.f, true, UITheme::TextShadow);
 
     // High Score
     std::string highStr = "HIGH SCORE:    " + std::to_string(highScore);
-    r.renderText({ cx, cardY + 174.f }, highStr.c_str(), font,
+    r.renderText({ cx, cardY + 164.f }, highStr.c_str(), font,
                  UITheme::TextSecondary, UITheme::ScaleBody,
                  3.f, 3.f, true, UITheme::TextShadow);
 
-    // Quick restart hint
-    r.renderText({ cx, cardY + 224.f }, "PRESS R TO RESTART", font,
+    // Music Status Line
+    std::string musicStr = std::string("MUSIC: ") + (musicEnabled ? "ON" : "OFF") + " (PRESS M)";
+    gl2d::Color4f musicColor = musicEnabled ? UITheme::TextSuccess : UITheme::TextSecondary;
+    r.renderText({ cx, cardY + 204.f }, musicStr.c_str(), font,
+                 musicColor, UITheme::ScaleSmall,
+                 3.f, 3.f, true, UITheme::TextShadow);
+
+    // Quick restart & menu hints
+    r.renderText({ cx, cardY + 236.f }, "PRESS R TO RESTART", font,
+                 UITheme::TextSecondary, UITheme::ScaleSmall,
+                 3.f, 3.f, true, UITheme::TextShadow);
+
+    r.renderText({ cx, cardY + 260.f }, "PRESS ESC TO MAIN MENU", font,
                  UITheme::TextSecondary, UITheme::ScaleSmall,
                  3.f, 3.f, true, UITheme::TextShadow);
 }
