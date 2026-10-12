@@ -15,6 +15,9 @@ void AssetManager::loadAssets()
     yellowCar.loadFromFile(
         RESOURCES_PATH "textures/cars/car_yellow_1.png", true);
 
+    blackCar.loadFromFile(
+        RESOURCES_PATH "textures/cars/car_black_1.png", true);
+
 
     // ===== Roads =====
     roadStraight.loadFromFile(
@@ -63,6 +66,7 @@ void AssetManager::freeAssets()
     redCar.cleanup();
     greenCar.cleanup();
     yellowCar.cleanup();
+    blackCar.cleanup();
 
     // ===== Roads =====
     roadStraight.cleanup();

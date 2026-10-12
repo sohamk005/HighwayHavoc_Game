@@ -9,6 +9,7 @@ struct AssetManager
     gl2d::Texture redCar;
     gl2d::Texture greenCar;
     gl2d::Texture yellowCar;
+    gl2d::Texture blackCar;
 
     // Roads
     gl2d::Texture roadStraight;

@@ -3,6 +3,7 @@
 enum class GameState
 {
     MainMenu,
+    Garage,
     Playing,
     Paused,
     GameOver

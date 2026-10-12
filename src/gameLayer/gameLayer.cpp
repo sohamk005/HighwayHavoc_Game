@@ -19,6 +19,7 @@
 #include "trafficManager.h"
 #include "coinManager.h"
 #include "healthPickupManager.h"
+#include "garage.h"
 #include "player.h"
 #include "collision.h"
 #include "scoreSystem.h"
@@ -32,6 +33,7 @@
 AssetManager assets;
 AudioManager audioManager;
 SaveSystem saveSystem;
+GarageManager garageManager;
 gl2d::Renderer2D renderer;
 Road road;
 Grass grass;
@@ -152,14 +154,25 @@ bool initGame()
     bool musicPref = saveSystem.loadMusicPreference();
     audioManager.setMusicEnabled(musicPref);
 
-    game.player.texture = &assets.blueCar;
+    garageManager.init();
+    garageManager.bindAssets(assets);
+    garageManager.recoverPendingPurchase(saveSystem);
+    garageManager.loadGarage();
+
+    // Set player texture from selected garage vehicle
+    game.player.texture = garageManager.getSelectedVehicle().texture;
+    if (game.player.texture == nullptr)
+    {
+        game.player.texture = &assets.blueCar;
+    }
 
     resetGame();
     game.state = GameState::MainMenu;
     audioManager.playMenuMusic();
 
     ilog("Highway Havoc Initialized. State: MainMenu (Press ENTER or SPACE to start) | High Score:", loadedHighScore,
-         "| Wallet:", loadedWallet, "| Music:", musicPref ? "ON" : "OFF");
+         "| Wallet:", loadedWallet, "| Music:", musicPref ? "ON" : "OFF",
+         "| Vehicle:", garageManager.getSelectedVehicle().name);
 
     return true;
 }
@@ -202,6 +215,15 @@ bool gameLogic(float deltaTime)
     }
 
     // State machine input handling & transitions
+    static size_t garageBrowseIndex = 0;
+    static float garageErrorTimer = 0.f;
+
+    if (garageErrorTimer > 0.f)
+    {
+        garageErrorTimer -= deltaTime;
+        if (garageErrorTimer < 0.f) garageErrorTimer = 0.f;
+    }
+
     switch (game.state)
     {
     case GameState::MainMenu:
@@ -214,6 +236,84 @@ bool gameLogic(float deltaTime)
             game.state = GameState::Playing;
             audioManager.playGameplayMusic(true);
             ilog("State Transition: MainMenu -> Playing (Game Started)");
+        }
+        else if (platform::isButtonPressedOn(platform::Button::G))
+        {
+            audioManager.playBeepSound();
+            game.state = GameState::Garage;
+            garageBrowseIndex = garageManager.getSelectedVehicleId();
+            garageErrorTimer = 0.f;
+            ilog("State Transition: MainMenu -> Garage");
+        }
+        break;
+    }
+    case GameState::Garage:
+    {
+        const auto& catalogue = garageManager.getCatalogue();
+        if (catalogue.empty()) break;
+
+        // Navigation (Left / Right / A / D)
+        if (platform::isButtonPressedOn(platform::Button::A) ||
+            platform::isButtonPressedOn(platform::Button::Left))
+        {
+            audioManager.playBeepSound();
+            if (garageBrowseIndex == 0)
+            {
+                garageBrowseIndex = catalogue.size() - 1;
+            }
+            else
+            {
+                garageBrowseIndex--;
+            }
+            garageErrorTimer = 0.f;
+        }
+        else if (platform::isButtonPressedOn(platform::Button::D) ||
+                 platform::isButtonPressedOn(platform::Button::Right))
+        {
+            audioManager.playBeepSound();
+            garageBrowseIndex = (garageBrowseIndex + 1) % catalogue.size();
+            garageErrorTimer = 0.f;
+        }
+        // Action: Buy or Equip (Enter / Space)
+        else if (platform::isButtonPressedOn(platform::Button::Enter) ||
+                 platform::isButtonPressedOn(platform::Button::Space))
+        {
+            uint32_t targetId = catalogue[garageBrowseIndex].id;
+            if (garageManager.isOwned(targetId))
+            {
+                // Equip already-owned vehicle
+                garageManager.selectVehicle(targetId);
+                game.player.texture = garageManager.getSelectedVehicle().texture;
+                audioManager.playBeepSound();
+                garageErrorTimer = 0.f;
+                ilog("Garage: Equipped vehicle", catalogue[garageBrowseIndex].name);
+            }
+            else
+            {
+                // Try buy
+                bool bought = garageManager.buyVehicle(targetId, saveSystem);
+                if (bought)
+                {
+                    game.player.texture = garageManager.getSelectedVehicle().texture;
+                    audioManager.playBeepSound();
+                    garageErrorTimer = 0.f;
+                    ilog("Garage: Purchased & Equipped vehicle", catalogue[garageBrowseIndex].name);
+                }
+                else
+                {
+                    // Insufficient coins or invalid
+                    garageErrorTimer = 2.0f; // display error message for 2 seconds
+                    audioManager.playCollisionSound(); // subtle low error audio prompt
+                    ilog("Garage: Failed to purchase vehicle (insufficient funds)");
+                }
+            }
+        }
+        // Return to Main Menu (Escape)
+        else if (platform::isButtonPressedOn(platform::Button::Escape))
+        {
+            audioManager.playBeepSound();
+            game.state = GameState::MainMenu;
+            ilog("State Transition: Garage -> MainMenu");
         }
         break;
     }
@@ -596,6 +696,23 @@ bool gameLogic(float deltaTime)
                            static_cast<float>(w), static_cast<float>(h),
                            saveSystem.getCachedWalletBalance(),
                            audioManager.isMusicEnabled());
+        break;
+    }
+    case GameState::Garage:
+    {
+        const auto& catalogue = garageManager.getCatalogue();
+        if (!catalogue.empty())
+        {
+            const auto& curVeh = catalogue[garageBrowseIndex % catalogue.size()];
+            bool owned = garageManager.isOwned(curVeh.id);
+            bool selected = (garageManager.getSelectedVehicleId() == curVeh.id);
+            UI::renderGarageScreen(renderer, assets.font,
+                                   curVeh, owned, selected,
+                                   saveSystem.getCachedWalletBalance(),
+                                   static_cast<float>(w), static_cast<float>(h),
+                                   garageBrowseIndex % catalogue.size(), catalogue.size(),
+                                   garageErrorTimer > 0.f);
+        }
         break;
     }
     case GameState::Playing:
