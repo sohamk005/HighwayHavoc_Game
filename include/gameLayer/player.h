@@ -16,20 +16,63 @@ struct Player
     static constexpr int DAMAGE_PER_COLLISION = 25;
     static constexpr int HEAL_PER_PICKUP = 25;
     static constexpr float INVULNERABILITY_DURATION = 1.5f;
+    static constexpr float SHIELD_DURATION = 12.0f;
+    static constexpr float SHIELD_BREAK_INVULNERABILITY = 0.75f;
+    static constexpr float MULTIPLIER_DURATION = 10.0f;
 
     int health = MAX_HEALTH;
     float invulnerabilityTimer = 0.f;
     bool isDead = false;
+
+    // Power-Up States
+    bool hasShield = false;
+    float shieldTimer = 0.f;
+
+    float multiplierTimer = 0.f;
 
     bool isInvulnerable() const
     {
         return invulnerabilityTimer > 0.f;
     }
 
+    bool isMultiplierActive() const
+    {
+        return multiplierTimer > 0.f;
+    }
+
+    void activateShield()
+    {
+        hasShield = true;
+        shieldTimer = SHIELD_DURATION;
+    }
+
+    void breakShield()
+    {
+        hasShield = false;
+        shieldTimer = 0.f;
+        // Grant temporary protection without shortening any longer existing invulnerability period
+        if (invulnerabilityTimer < SHIELD_BREAK_INVULNERABILITY)
+        {
+            invulnerabilityTimer = SHIELD_BREAK_INVULNERABILITY;
+        }
+    }
+
+    void activateMultiplier()
+    {
+        multiplierTimer = MULTIPLIER_DURATION;
+    }
+
     bool takeDamage(int amount = DAMAGE_PER_COLLISION)
     {
         if (isDead || isInvulnerable())
             return false;
+
+        // If shielded, absorb the hit completely without deducting health
+        if (hasShield)
+        {
+            breakShield();
+            return false;
+        }
 
         health -= amount;
         if (health <= 0)
@@ -66,6 +109,25 @@ struct Player
                 invulnerabilityTimer = 0.f;
             }
         }
+
+        if (hasShield)
+        {
+            shieldTimer -= deltaTime;
+            if (shieldTimer <= 0.f)
+            {
+                hasShield = false;
+                shieldTimer = 0.f;
+            }
+        }
+
+        if (multiplierTimer > 0.f)
+        {
+            multiplierTimer -= deltaTime;
+            if (multiplierTimer < 0.f)
+            {
+                multiplierTimer = 0.f;
+            }
+        }
     }
 
     void reset(float startX, float startY)
@@ -74,5 +136,9 @@ struct Player
         health = MAX_HEALTH;
         invulnerabilityTimer = 0.f;
         isDead = false;
+        hasShield = false;
+        shieldTimer = 0.f;
+        multiplierTimer = 0.f;
     }
 };
+

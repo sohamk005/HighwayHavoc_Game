@@ -59,6 +59,8 @@ void renderPlayingHUD(gl2d::Renderer2D& r, gl2d::Font font,
                       uint32_t currentScore, uint32_t highScore,
                       int health, int maxHealth,
                       uint32_t coinCount,
+                      bool hasShield, float shieldTimer,
+                      bool isMultiplierActive, float multiplierTimer,
                       float screenWidth, float screenHeight)
 {
     // ==========================================
@@ -121,6 +123,75 @@ void renderPlayingHUD(gl2d::Renderer2D& r, gl2d::Font font,
         r.renderText({ coinCenterX, coinCenterY }, coinStr.c_str(), font,
                      UITheme::TextAccent, UITheme::ScaleSmall,
                      3.f, 3.f, true, UITheme::TextShadow);
+    }
+
+    // ==========================================
+    // Left: Power-Up Status Cards (Below Coins)
+    // ==========================================
+    float nextPowerUpY = 112.f;
+
+    // 1. Shield Status Card
+    if (hasShield)
+    {
+        constexpr float puCardX = 14.f;
+        constexpr float puCardW = 160.f;
+        constexpr float puCardH = 34.f;
+
+        UITheme::drawFramedPanel(r, puCardX, nextPowerUpY, puCardW, puCardH,
+                                UITheme::PanelBg, gl2d::Color4f{ 0.20f, 0.70f, 0.95f, 0.85f }, 1.5f);
+
+        // Cyan shield icon emblem
+        constexpr float sSize = 14.f;
+        const float sX = puCardX + 12.f;
+        const float sY = nextPowerUpY + (puCardH - sSize) * 0.5f;
+        r.renderRectangle({ sX, sY, sSize, sSize }, gl2d::Color4f{ 0.15f, 0.70f, 0.95f, 1.0f });
+        r.renderRectangle({ sX + 2.f, sY + 2.f, sSize - 4.f, sSize - 4.f }, gl2d::Color4f{ 0.75f, 0.92f, 1.0f, 1.0f });
+
+        if (font.texture.id != 0)
+        {
+            int sec = static_cast<int>(std::ceil(std::max(0.f, shieldTimer)));
+            std::string shieldStr = "SHIELD  " + std::to_string(sec) + "s";
+            glm::vec2 textSize = r.getTextSize(shieldStr.c_str(), font, UITheme::ScaleSmall);
+            float textCenterX = sX + sSize + 10.f + textSize.x * 0.5f;
+            float textCenterY = nextPowerUpY + puCardH * 0.5f;
+
+            r.renderText({ textCenterX, textCenterY }, shieldStr.c_str(), font,
+                         gl2d::Color4f{ 0.35f, 0.85f, 1.0f, 1.0f }, UITheme::ScaleSmall,
+                         3.f, 3.f, true, UITheme::TextShadow);
+        }
+
+        nextPowerUpY += 40.f;
+    }
+
+    // 2. 2X Multiplier Status Card
+    if (isMultiplierActive)
+    {
+        constexpr float puCardX = 14.f;
+        constexpr float puCardW = 160.f;
+        constexpr float puCardH = 34.f;
+
+        UITheme::drawFramedPanel(r, puCardX, nextPowerUpY, puCardW, puCardH,
+                                UITheme::PanelBg, gl2d::Color4f{ 0.95f, 0.75f, 0.10f, 0.85f }, 1.5f);
+
+        // Golden 2X icon emblem
+        constexpr float mSize = 14.f;
+        const float mX = puCardX + 12.f;
+        const float mY = nextPowerUpY + (puCardH - mSize) * 0.5f;
+        r.renderRectangle({ mX, mY, mSize, mSize }, gl2d::Color4f{ 0.95f, 0.75f, 0.10f, 1.0f });
+        r.renderRectangle({ mX + 2.f, mY + 2.f, mSize - 4.f, mSize - 4.f }, gl2d::Color4f{ 1.0f, 0.88f, 0.30f, 1.0f });
+
+        if (font.texture.id != 0)
+        {
+            int sec = static_cast<int>(std::ceil(std::max(0.f, multiplierTimer)));
+            std::string multStr = "2X COINS " + std::to_string(sec) + "s";
+            glm::vec2 textSize = r.getTextSize(multStr.c_str(), font, UITheme::ScaleSmall);
+            float textCenterX = mX + mSize + 8.f + textSize.x * 0.5f;
+            float textCenterY = nextPowerUpY + puCardH * 0.5f;
+
+            r.renderText({ textCenterX, textCenterY }, multStr.c_str(), font,
+                         UITheme::TextAccent, UITheme::ScaleSmall,
+                         3.f, 3.f, true, UITheme::TextShadow);
+        }
     }
 
     // ==========================================

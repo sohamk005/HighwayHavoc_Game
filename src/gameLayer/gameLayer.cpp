@@ -19,6 +19,7 @@
 #include "trafficManager.h"
 #include "coinManager.h"
 #include "healthPickupManager.h"
+#include "powerUpManager.h"
 #include "garage.h"
 #include "player.h"
 #include "collision.h"
@@ -41,6 +42,8 @@ ObstacleManager obstacleManager;
 TrafficManager trafficManager;
 CoinManager coinManager;
 HealthPickupManager healthPickupManager;
+PowerUpManager powerUpManager;
+
 
 //=========================================================
 // Game World --
@@ -105,6 +108,7 @@ void resetGame()
     trafficManager.reset();
     coinManager.reset();
     healthPickupManager.reset();
+    powerUpManager.reset();
 
     ilog("Run Reset. High Score:", game.score.highScore, "| Total Wallet:", saveSystem.getCachedWalletBalance());
 }
@@ -142,6 +146,8 @@ bool initGame()
 
     coinManager.init();
     healthPickupManager.init();
+    powerUpManager.init();
+
 
     saveSystem.init();
     uint32_t loadedHighScore = saveSystem.loadHighScore();
@@ -481,7 +487,35 @@ bool gameLogic(float deltaTime)
             nullptr, // uses procedural cross rendering
             trafficManager.cars);
 
+        powerUpManager.update(
+            game.world.scrollSpeed,
+            deltaTime,
+            h,
+            road,
+            trafficManager.cars);
+
         // 6. Collision Detection & Response
+        // Player vs. Power-Ups
+        for (auto& pu : powerUpManager.powerUps)
+        {
+            if (!pu.active)
+                continue;
+
+            if (collision::checkAABBOverlap(game.player.position, game.player.size, pu.position, pu.size))
+            {
+                pu.active = false;
+                if (pu.type == PowerUpType::Shield)
+                {
+                    game.player.activateShield();
+                }
+                else if (pu.type == PowerUpType::DoubleCoins)
+                {
+                    game.player.activateMultiplier();
+                }
+                audioManager.playBeepSound();
+            }
+        }
+
         // Player vs. Collectible Coins
         for (auto& coin : coinManager.coins)
         {
@@ -491,7 +525,8 @@ bool gameLogic(float deltaTime)
             if (collision::checkAABBOverlap(game.player.position, game.player.size, coin.position, coin.size))
             {
                 coin.active = false;
-                game.coinCount++;
+                uint32_t earned = game.player.isMultiplierActive() ? 2 : 1;
+                game.coinCount += earned;
                 audioManager.playBeepSound();
             }
         }
@@ -517,6 +552,7 @@ bool gameLogic(float deltaTime)
             }
         }
 
+
         // Player vs. Traffic Cars
         for (const auto& car : trafficManager.cars)
         {
@@ -525,6 +561,7 @@ bool gameLogic(float deltaTime)
 
             if (collision::checkAABBOverlap(game.player.position, game.player.size, car.position, car.size))
             {
+                bool hadShield = game.player.hasShield;
                 bool tookDamage = game.player.takeDamage(Player::DAMAGE_PER_COLLISION);
                 collision::resolveAABBCollision(game.player.position, game.player.size, car.position, car.size);
 
@@ -555,6 +592,11 @@ bool gameLogic(float deltaTime)
                         audioManager.playCollisionSound();
                     }
                 }
+                else if (hadShield && !game.player.hasShield)
+                {
+                    // Shield absorbed hit and broke
+                    audioManager.playCollisionSound();
+                }
             }
         }
 
@@ -568,6 +610,7 @@ bool gameLogic(float deltaTime)
 
                 if (collision::checkAABBOverlap(game.player.position, game.player.size, obs.position, obs.size))
                 {
+                    bool hadShield = game.player.hasShield;
                     bool tookDamage = game.player.takeDamage(Player::DAMAGE_PER_COLLISION);
                     collision::resolveAABBCollision(game.player.position, game.player.size, obs.position, obs.size);
 
@@ -592,9 +635,15 @@ bool gameLogic(float deltaTime)
                             audioManager.playCollisionSound();
                         }
                     }
+                    else if (hadShield && !game.player.hasShield)
+                    {
+                        // Shield absorbed hit and broke
+                        audioManager.playCollisionSound();
+                    }
                 }
             }
         }
+
 
         if (game.player.isDead && game.state == GameState::Playing)
         {
@@ -633,6 +682,9 @@ bool gameLogic(float deltaTime)
 
     // Collectible Health Pickups
     healthPickupManager.render(renderer);
+
+    // Collectible Power-Ups
+    powerUpManager.render(renderer);
 
     // Traffic Cars
     trafficManager.render(renderer);
@@ -687,6 +739,22 @@ bool gameLogic(float deltaTime)
         *game.player.texture,
         playerColor);
 
+    // Active Shield Visual Aura (Restrained cyan energy barrier surrounding player)
+    if (game.player.hasShield && !game.player.isDead)
+    {
+        constexpr float auraPadding = 6.f;
+        const glm::vec2 auraPos = { game.player.position.x - auraPadding, game.player.position.y - auraPadding };
+        const glm::vec2 auraSize = { game.player.size.x + 2.f * auraPadding, game.player.size.y + 2.f * auraPadding };
+
+        // Outer barrier glow
+        renderer.renderRectangle({ auraPos, auraSize }, gl2d::Color4f{ 0.15f, 0.65f, 0.95f, 0.22f });
+        // Beveled barrier borders
+        renderer.renderRectangle({ auraPos.x, auraPos.y, auraSize.x, 2.f }, gl2d::Color4f{ 0.35f, 0.85f, 1.0f, 0.65f });
+        renderer.renderRectangle({ auraPos.x, auraPos.y + auraSize.y - 2.f, auraSize.x, 2.f }, gl2d::Color4f{ 0.35f, 0.85f, 1.0f, 0.65f });
+        renderer.renderRectangle({ auraPos.x, auraPos.y, 2.f, auraSize.y }, gl2d::Color4f{ 0.35f, 0.85f, 1.0f, 0.65f });
+        renderer.renderRectangle({ auraPos.x + auraSize.x - 2.f, auraPos.y, 2.f, auraSize.y }, gl2d::Color4f{ 0.35f, 0.85f, 1.0f, 0.65f });
+    }
+
     // Player-Facing UI presentation by GameState
     switch (game.state)
     {
@@ -721,6 +789,8 @@ bool gameLogic(float deltaTime)
                              game.score.currentScore, game.score.highScore,
                              game.player.health, Player::MAX_HEALTH,
                              game.coinCount,
+                             game.player.hasShield, game.player.shieldTimer,
+                             game.player.isMultiplierActive(), game.player.multiplierTimer,
                              static_cast<float>(w), static_cast<float>(h));
         break;
     }
@@ -730,6 +800,8 @@ bool gameLogic(float deltaTime)
                              game.score.currentScore, game.score.highScore,
                              game.player.health, Player::MAX_HEALTH,
                              game.coinCount,
+                             game.player.hasShield, game.player.shieldTimer,
+                             game.player.isMultiplierActive(), game.player.multiplierTimer,
                              static_cast<float>(w), static_cast<float>(h));
         UI::renderPauseOverlay(renderer, assets.font,
                                game.score.currentScore, game.score.highScore,
@@ -744,7 +816,10 @@ bool gameLogic(float deltaTime)
                              game.score.currentScore, game.score.highScore,
                              game.player.health, Player::MAX_HEALTH,
                              game.coinCount,
+                             game.player.hasShield, game.player.shieldTimer,
+                             game.player.isMultiplierActive(), game.player.multiplierTimer,
                              static_cast<float>(w), static_cast<float>(h));
+
         UI::renderGameOverScreen(renderer, assets.font,
                                  game.score.currentScore, game.score.highScore,
                                  static_cast<float>(w), static_cast<float>(h),
