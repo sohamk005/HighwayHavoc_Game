@@ -47,6 +47,11 @@ void AssetManager::loadAssets()
         RESOURCES_PATH "textures/environment/land_grass04.png",
         true);
 
+    // ===== Collectibles =====
+    coin.loadFromFile(
+        RESOURCES_PATH "textures/coin.png",
+        true);
+
     // ===== Fonts =====
     font.createFromFile(RESOURCES_PATH "fonts/Roboto-Medium.ttf");
 }
@@ -71,6 +76,7 @@ void AssetManager::freeAssets()
     cone.cleanup();
     rock.cleanup();
     grass.cleanup();
+    coin.cleanup();
 
     // ===== Fonts =====
     font.cleanup();

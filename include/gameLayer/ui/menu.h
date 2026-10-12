@@ -10,13 +10,15 @@ namespace UI
                         uint32_t highScore,
                         float screenWidth, float screenHeight);
 
-    // Pause Overlay: "PAUSED" title, "PRESS P TO RESUME", current score, high score
+    // Pause Overlay: "PAUSED" title, "PRESS P TO RESUME", current score, high score, coins
     void renderPauseOverlay(gl2d::Renderer2D& r, gl2d::Font font,
                             uint32_t currentScore, uint32_t highScore,
-                            float screenWidth, float screenHeight);
+                            float screenWidth, float screenHeight,
+                            uint32_t currentCoins = 0);
 
-    // Game Over Screen: "GAME OVER" title, final score, high score, restart/menu options
+    // Game Over Screen: "GAME OVER" title, final score, high score, coins, restart/menu options
     void renderGameOverScreen(gl2d::Renderer2D& r, gl2d::Font font,
                               uint32_t finalScore, uint32_t highScore,
-                              float screenWidth, float screenHeight);
+                              float screenWidth, float screenHeight,
+                              uint32_t finalCoins = 0);
 }

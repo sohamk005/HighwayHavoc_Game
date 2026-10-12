@@ -76,7 +76,8 @@ void renderMainMenu(gl2d::Renderer2D& r, gl2d::Font font,
 
 void renderPauseOverlay(gl2d::Renderer2D& r, gl2d::Font font,
                         uint32_t currentScore, uint32_t highScore,
-                        float screenWidth, float screenHeight)
+                        float screenWidth, float screenHeight,
+                        uint32_t currentCoins)
 {
     // Fullscreen backdrop dim
     r.renderRectangle({ 0.f, 0.f, screenWidth, screenHeight }, UITheme::BackdropDim);
@@ -88,7 +89,7 @@ void renderPauseOverlay(gl2d::Renderer2D& r, gl2d::Font font,
 
     // Centered modal card
     constexpr float cardW = 400.f;
-    constexpr float cardH = 250.f;
+    constexpr float cardH = 264.f;
     const float cardX = cx - cardW * 0.5f;
     const float cardY = cy - cardH * 0.5f;
 
@@ -96,39 +97,46 @@ void renderPauseOverlay(gl2d::Renderer2D& r, gl2d::Font font,
                             UITheme::PanelBg, UITheme::PanelBorder, 2.0f);
 
     // Title
-    r.renderText({ cx, cardY + 36.f }, "PAUSED", font,
+    r.renderText({ cx, cardY + 34.f }, "PAUSED", font,
                  UITheme::TextAccent, UITheme::ScaleHeader,
                  5.f, 4.f, true, UITheme::TextShadow);
 
     // Divider line
-    r.renderRectangle({ cardX + 36.f, cardY + 60.f, cardW - 72.f, 1.f }, UITheme::PanelBorder);
+    r.renderRectangle({ cardX + 36.f, cardY + 56.f, cardW - 72.f, 1.f }, UITheme::PanelBorder);
 
     // Resume prompt
-    r.renderText({ cx, cardY + 86.f }, "PRESS P TO RESUME", font,
+    r.renderText({ cx, cardY + 80.f }, "PRESS P TO RESUME", font,
                  UITheme::TextPrimary, UITheme::ScaleSubhead,
                  4.f, 3.f, true, UITheme::TextShadow);
 
     // Current Score
     std::string scoreStr = "CURRENT SCORE: " + std::to_string(currentScore);
-    r.renderText({ cx, cardY + 128.f }, scoreStr.c_str(), font,
+    r.renderText({ cx, cardY + 118.f }, scoreStr.c_str(), font,
                  UITheme::TextPrimary, UITheme::ScaleBody,
+                 3.f, 3.f, true, UITheme::TextShadow);
+
+    // Coins
+    std::string coinStr = "COINS:         " + std::to_string(currentCoins);
+    r.renderText({ cx, cardY + 146.f }, coinStr.c_str(), font,
+                 UITheme::TextAccent, UITheme::ScaleBody,
                  3.f, 3.f, true, UITheme::TextShadow);
 
     // High Score
     std::string highStr = "HIGH SCORE:    " + std::to_string(highScore);
-    r.renderText({ cx, cardY + 158.f }, highStr.c_str(), font,
+    r.renderText({ cx, cardY + 174.f }, highStr.c_str(), font,
                  UITheme::TextSecondary, UITheme::ScaleBody,
                  3.f, 3.f, true, UITheme::TextShadow);
 
     // Quick restart hint
-    r.renderText({ cx, cardY + 208.f }, "PRESS R TO RESTART", font,
+    r.renderText({ cx, cardY + 224.f }, "PRESS R TO RESTART", font,
                  UITheme::TextSecondary, UITheme::ScaleSmall,
                  3.f, 3.f, true, UITheme::TextShadow);
 }
 
 void renderGameOverScreen(gl2d::Renderer2D& r, gl2d::Font font,
                           uint32_t finalScore, uint32_t highScore,
-                          float screenWidth, float screenHeight)
+                          float screenWidth, float screenHeight,
+                          uint32_t finalCoins)
 {
     // Fullscreen backdrop dim with dark red undertone
     r.renderRectangle({ 0.f, 0.f, screenWidth, screenHeight },
@@ -141,7 +149,7 @@ void renderGameOverScreen(gl2d::Renderer2D& r, gl2d::Font font,
 
     // Centered modal card with crimson border
     constexpr float cardW = 440.f;
-    constexpr float cardH = 290.f;
+    constexpr float cardH = 310.f;
     const float cardX = cx - cardW * 0.5f;
     const float cardY = cy - cardH * 0.5f;
 
@@ -149,39 +157,53 @@ void renderGameOverScreen(gl2d::Renderer2D& r, gl2d::Font font,
                             UITheme::PanelBg, UITheme::PanelBorderDanger, 2.0f);
 
     // Title
-    r.renderText({ cx, cardY + 38.f }, "GAME OVER", font,
+    r.renderText({ cx, cardY + 36.f }, "GAME OVER", font,
                  UITheme::TextDanger, UITheme::ScaleHeader,
                  5.f, 4.f, true, UITheme::TextShadow);
 
     // Crimson divider line
-    r.renderRectangle({ cardX + 36.f, cardY + 62.f, cardW - 72.f, 1.f }, UITheme::PanelBorderDanger);
+    r.renderRectangle({ cardX + 36.f, cardY + 58.f, cardW - 72.f, 1.f }, UITheme::PanelBorderDanger);
 
+    float textOffsetY = cardY + 80.f;
     // High score notification if achieved
     if (finalScore >= highScore && finalScore > 0)
     {
-        r.renderText({ cx, cardY + 84.f }, "★  NEW HIGH SCORE!  ★", font,
+        r.renderText({ cx, textOffsetY }, "★  NEW HIGH SCORE!  ★", font,
                      UITheme::TextAccent, UITheme::ScaleSmall,
                      4.f, 3.f, true, UITheme::TextShadow);
+        textOffsetY += 26.f;
+    }
+    else
+    {
+        textOffsetY += 10.f;
     }
 
     // Final Score
     std::string scoreStr = "FINAL SCORE: " + std::to_string(finalScore);
-    r.renderText({ cx, cardY + 118.f }, scoreStr.c_str(), font,
+    r.renderText({ cx, textOffsetY }, scoreStr.c_str(), font,
                  UITheme::TextPrimary, UITheme::ScaleSubhead,
                  4.f, 3.f, true, UITheme::TextShadow);
+    textOffsetY += 30.f;
+
+    // Coins Collected
+    std::string coinsStr = "COINS: " + std::to_string(finalCoins);
+    r.renderText({ cx, textOffsetY }, coinsStr.c_str(), font,
+                 UITheme::TextAccent, UITheme::ScaleBody,
+                 3.f, 3.f, true, UITheme::TextShadow);
+    textOffsetY += 28.f;
 
     // High Score
     std::string highStr = "HIGH SCORE:  " + std::to_string(highScore);
-    r.renderText({ cx, cardY + 152.f }, highStr.c_str(), font,
+    r.renderText({ cx, textOffsetY }, highStr.c_str(), font,
                  UITheme::TextSecondary, UITheme::ScaleBody,
                  3.f, 3.f, true, UITheme::TextShadow);
 
     // Action Prompts
-    r.renderText({ cx, cardY + 204.f }, "PRESS R TO RESTART", font,
+    r.renderText({ cx, cardY + 234.f }, "PRESS R TO RESTART", font,
                  UITheme::TextSuccess, UITheme::ScaleBody,
                  4.f, 3.f, true, UITheme::TextShadow);
 
-    r.renderText({ cx, cardY + 242.f }, "PRESS ESC TO RETURN TO MAIN MENU", font,
+    r.renderText({ cx, cardY + 270.f }, "PRESS ESC TO RETURN TO MAIN MENU", font,
                  UITheme::TextSecondary, UITheme::ScaleSmall,
                  3.f, 3.f, true, UITheme::TextShadow);
 }

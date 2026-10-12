@@ -24,6 +24,9 @@ struct AssetManager
     // Ground
     gl2d::Texture grass;
 
+    // Collectibles
+    gl2d::Texture coin;
+
     // UI Font
     gl2d::Font font;
 

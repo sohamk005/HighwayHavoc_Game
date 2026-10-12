@@ -17,6 +17,7 @@
 
 #include "obstacleManager.h"
 #include "trafficManager.h"
+#include "coinManager.h"
 #include "player.h"
 #include "collision.h"
 #include "scoreSystem.h"
@@ -35,6 +36,7 @@ Road road;
 Grass grass;
 ObstacleManager obstacleManager;
 TrafficManager trafficManager;
+CoinManager coinManager;
 
 //=========================================================
 // Game World --
@@ -60,6 +62,7 @@ struct GameData
     Player player{};
     GameWorld world;
     ScoreSystem score;
+    uint32_t coinCount = 0;
     GameState state = GameState::MainMenu;
 };
 
@@ -86,10 +89,12 @@ void resetGame()
 
     // Reset current run score & difficulty; session high score is preserved!
     game.score.resetRun();
+    game.coinCount = 0;
     game.world.maxScrollSpeed = game.score.getMaxScrollSpeed();
 
     obstacleManager.reset();
     trafficManager.reset();
+    coinManager.reset();
 
     ilog("Run Reset. High Score:", game.score.highScore);
 }
@@ -107,6 +112,8 @@ bool initGame()
     assets.loadAssets();
     audioManager.init();
     audioManager.loadAssets();
+
+    coinManager.init();
 
     saveSystem.init();
     uint32_t loadedHighScore = saveSystem.loadHighScore();
@@ -315,7 +322,29 @@ bool gameLogic(float deltaTime)
             assets,
             game.score.getTrafficSpeedBoost());
 
+        coinManager.update(
+            game.world.scrollSpeed,
+            deltaTime,
+            h,
+            road,
+            &assets.coin,
+            trafficManager.cars);
+
         // 6. Collision Detection & Response
+        // Player vs. Collectible Coins
+        for (auto& coin : coinManager.coins)
+        {
+            if (!coin.active)
+                continue;
+
+            if (collision::checkAABBOverlap(game.player.position, game.player.size, coin.position, coin.size))
+            {
+                coin.active = false;
+                game.coinCount++;
+                audioManager.playBeepSound();
+            }
+        }
+
         // Player vs. Traffic Cars
         for (const auto& car : trafficManager.cars)
         {
@@ -442,6 +471,9 @@ bool gameLogic(float deltaTime)
         h,
         game.world.scrollOffset);
 
+    // Collectible Coins
+    coinManager.render(renderer);
+
     // Traffic Cars
     trafficManager.render(renderer);
 
@@ -509,6 +541,7 @@ bool gameLogic(float deltaTime)
         UI::renderPlayingHUD(renderer, assets.font,
                              game.score.currentScore, game.score.highScore,
                              game.player.health, Player::MAX_HEALTH,
+                             game.coinCount,
                              static_cast<float>(w), static_cast<float>(h));
         break;
     }
@@ -517,10 +550,12 @@ bool gameLogic(float deltaTime)
         UI::renderPlayingHUD(renderer, assets.font,
                              game.score.currentScore, game.score.highScore,
                              game.player.health, Player::MAX_HEALTH,
+                             game.coinCount,
                              static_cast<float>(w), static_cast<float>(h));
         UI::renderPauseOverlay(renderer, assets.font,
                                game.score.currentScore, game.score.highScore,
-                               static_cast<float>(w), static_cast<float>(h));
+                               static_cast<float>(w), static_cast<float>(h),
+                               game.coinCount);
         break;
     }
     case GameState::GameOver:
@@ -528,10 +563,12 @@ bool gameLogic(float deltaTime)
         UI::renderPlayingHUD(renderer, assets.font,
                              game.score.currentScore, game.score.highScore,
                              game.player.health, Player::MAX_HEALTH,
+                             game.coinCount,
                              static_cast<float>(w), static_cast<float>(h));
         UI::renderGameOverScreen(renderer, assets.font,
                                  game.score.currentScore, game.score.highScore,
-                                 static_cast<float>(w), static_cast<float>(h));
+                                 static_cast<float>(w), static_cast<float>(h),
+                                 game.coinCount);
         break;
     }
     }

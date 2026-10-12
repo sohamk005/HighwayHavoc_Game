@@ -58,6 +58,7 @@ void renderHealthBar(gl2d::Renderer2D& r, gl2d::Font font,
 void renderPlayingHUD(gl2d::Renderer2D& r, gl2d::Font font,
                       uint32_t currentScore, uint32_t highScore,
                       int health, int maxHealth,
+                      uint32_t coinCount,
                       float screenWidth, float screenHeight)
 {
     // ==========================================
@@ -91,6 +92,36 @@ void renderPlayingHUD(gl2d::Renderer2D& r, gl2d::Font font,
     constexpr float barH = 14.f;
 
     renderHealthBar(r, font, health, maxHealth, barX, barY, barW, barH);
+
+    // ==========================================
+    // Left: Coin Counter Card (Below Health)
+    // ==========================================
+    constexpr float coinCardX = 14.f;
+    constexpr float coinCardY = 70.f;
+    constexpr float coinCardW = 160.f;
+    constexpr float coinCardH = 34.f;
+
+    UITheme::drawFramedPanel(r, coinCardX, coinCardY, coinCardW, coinCardH,
+                            UITheme::PanelBg, UITheme::PanelBorder, 1.5f);
+
+    // Gold coin emblem
+    constexpr float emblemSize = 14.f;
+    constexpr float emblemX = coinCardX + 12.f;
+    const float emblemY = coinCardY + (coinCardH - emblemSize) * 0.5f;
+    r.renderRectangle({ emblemX, emblemY, emblemSize, emblemSize }, gl2d::Color4f{ 0.90f, 0.72f, 0.10f, 1.0f });
+    r.renderRectangle({ emblemX + 2.f, emblemY + 2.f, emblemSize - 4.f, emblemSize - 4.f }, gl2d::Color4f{ 1.0f, 0.86f, 0.20f, 1.0f });
+
+    if (font.texture.id != 0)
+    {
+        std::string coinStr = "COINS  " + std::to_string(coinCount);
+        glm::vec2 coinTextSize = r.getTextSize(coinStr.c_str(), font, UITheme::ScaleSmall);
+        float coinCenterX = emblemX + emblemSize + 10.f + coinTextSize.x * 0.5f;
+        float coinCenterY = coinCardY + coinCardH * 0.5f;
+
+        r.renderText({ coinCenterX, coinCenterY }, coinStr.c_str(), font,
+                     UITheme::TextAccent, UITheme::ScaleSmall,
+                     3.f, 3.f, true, UITheme::TextShadow);
+    }
 
     // ==========================================
     // Right: Score Card
